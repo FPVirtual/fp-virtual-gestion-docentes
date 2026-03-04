@@ -46,13 +46,13 @@
 
                 <form method="POST" action="{{ route('alta_docente.store') }}" class="alta-form">
                     @csrf
-                    
+
                     <div class="alta-form-group">
                         <label for="dni" class="alta-label">
                             <i class="fas fa-id-card mr-1"></i> DNI:
                         </label>
-                        <input type="text" name="dni" id="dni" 
-                            class="alta-input @error('dni') alta-input-error @enderror" 
+                        <input type="text" name="dni" id="dni"
+                            class="alta-input @error('dni') alta-input-error @enderror"
                             required placeholder="Ej: 12345678A">
                     </div>
 
@@ -60,8 +60,8 @@
                         <label for="email" class="alta-label">
                             <i class="fas fa-envelope mr-1"></i> Correo Electrónico (NO USAR el de @fpvirtualaragon.es):
                         </label>
-                        <input type="email" name="email" id="email" 
-                            class="alta-input @error('email') alta-input-error @enderror" 
+                        <input type="email" name="email" id="email"
+                            class="alta-input @error('email') alta-input-error @enderror"
                             required placeholder="docente@centro-educativo.com">
                     </div>
 
@@ -70,8 +70,8 @@
                             <i class="fas fa-user mr-1"></i> Nombre:
                         </label>
                         <div class="input-wrapper">
-                            <input type="text" name="nombre" id="nombre" 
-                                class="alta-input @error('nombre') alta-input-error @enderror" 
+                            <input type="text" name="nombre" id="nombre"
+                                class="alta-input @error('nombre') alta-input-error @enderror"
                                 required placeholder="Nombre del docente">
                             <i id="toggle-nombre" class="fa-solid fa-lock toggle-icon" title="Editar" style="display: none;"></i>
                         </div>
@@ -82,13 +82,23 @@
                             <i class="fas fa-user-tag mr-1"></i> Apellidos:
                         </label>
                         <div class="input-wrapper">
-                            <input type="text" name="apellido" id="apellido" 
-                                class="alta-input @error('apellido') alta-input-error @enderror" 
+                            <input type="text" name="apellido" id="apellido"
+                                class="alta-input @error('apellido') alta-input-error @enderror"
                                 required placeholder="Todos los apellidos del docente">
                             <i id="toggle-apellido" class="fa-solid fa-lock toggle-icon" title="Editar" style="display: none;"></i>
                         </div>
                     </div>
-
+                    <div class="mb-4">
+                        <label for="formacion" class="inline-flex items-center">
+                            <input type="checkbox"
+                                   name="formacion"
+                                   id="formacion"
+                                   value="1"
+                                   {{ old('formacion') ? 'checked' : '' }}
+                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                            <span class="ml-2 text-sm text-gray-600">¿Debe realizar la formación obligatoria?</span>
+                        </label>
+                    </div>
                     <input type="hidden" name="id_centro" value="{{ $centro->id_centro }}">
 
                     <div class="alta-form-actions">
@@ -103,7 +113,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Script para autocompletar los campos nombre y apellido -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -126,11 +136,11 @@
             function showToast(message) {
                 const toast = document.getElementById('toast-notification');
                 const toastMessage = document.getElementById('toast-message');
-                
+
                 toastMessage.textContent = message;
                 toast.classList.remove('hidden');
                 toast.classList.add('animate__fadeInRight');
-                
+
                 // Auto-hide after 5 seconds
                 setTimeout(hideToast, 5000);
             }
@@ -139,7 +149,7 @@
                 const toast = document.getElementById('toast-notification');
                 toast.classList.remove('animate__fadeInRight');
                 toast.classList.add('animate__fadeOutRight');
-                
+
                 // Wait for animation to complete before hiding
                 setTimeout(() => {
                     toast.classList.add('hidden');
