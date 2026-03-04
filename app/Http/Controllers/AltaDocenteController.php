@@ -16,7 +16,13 @@ class AltaDocenteController extends Controller
     public function create()
     {
         $centro = Auth::user()->centro;
-        return view('alta_docente', compact('centro'));
+        $modulosPorCiclo = \Illuminate\Support\Facades\DB::table('ciclos')
+            ->join('ciclo_modulo', 'ciclos.id_ciclo', '=', 'ciclo_modulo.id_ciclo')
+            ->join('modulos', 'ciclo_modulo.id_modulo', '=', 'modulos.id_modulo')
+            ->select('ciclos.nombre as nombre_ciclo', 'modulos.*')
+            ->get()
+            ->groupBy('nombre_ciclo'); // Esto los agrupa automáticamente por el nombre del ciclo
+        return view('alta_docente', compact('centro', 'modulosPorCiclo'));
     }
 
     /**
@@ -25,12 +31,19 @@ class AltaDocenteController extends Controller
     private function normalizarNombreYApellido($string) {
         // Primero eliminamos los caracteres "º" y "."
         $limpio = str_replace(['º', '.'], '', $string);
+
         return mb_convert_case(mb_strtolower($limpio, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
     }
 
 
     public function store(Request $request)
     {
+        // 1. Validamos que el profesor esté y que haya al menos un módulo seleccionado
+        $request->validate([
+            'dni' => 'required',
+            'modulos' => 'required|array|min:1', // Obligamos a marcar al menos uno
+        ]);
+
         $dni = strtoupper($request->dni);
 
 
@@ -77,6 +90,19 @@ class AltaDocenteController extends Controller
         try {
             // Buscar el docente existente por DNI
             $docente = Docente::where('dni', $dni)->first();
+
+            // 2. ASIGNACIÓN MASIVA DE MÓDULOS
+            // Primero borramos las asignaciones antiguas para no duplicar (si es necesario)
+        DB::table('docente_modulo_ciclo')->where('dni', $dni)->delete();
+            // Luego insertamos cada módulo seleccionado
+            foreach ($request->modulos as $id_modulo) {
+                DB::table('docente_modulo_ciclo')->insert([
+                    'dni' => $dni,
+                    'id_modulo' => $id_modulo,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             if ($docente) {
                 // Si el nombre o apellido han cambiado, actualizarlos

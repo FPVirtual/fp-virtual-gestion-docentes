@@ -88,27 +88,31 @@
                             <i id="toggle-apellido" class="fa-solid fa-lock toggle-icon" title="Editar" style="display: none;"></i>
                         </div>
                     </div>
-                    <div class="mb-4">
-                        <label for="formacion" class="inline-flex items-center">
-                            <input type="checkbox"
-                                   name="formacion"
-                                   id="formacion"
-                                   value="1"
-                                   {{ old('formacion') ? 'checked' : '' }}
-                                   class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                            <span class="ml-2 text-sm text-gray-600">¿Debe realizar la formación obligatoria?</span>
-                        </label>
-                    </div>
-                    <input type="hidden" name="id_centro" value="{{ $centro->id_centro }}">
+                    <hr class="my-6">
 
-                    <div class="alta-form-actions">
-                        <a href="{{ route('dashboard') }}" class="alta-button alta-button-secondary">
-                            <i class="fas fa-arrow-left mr-2"></i> Volver al panel
-                        </a>
-                        <button type="submit" class="alta-button alta-button-primary">
-                            <i class="fas fa-user-plus mr-2"></i> Guardar docente
-                        </button>
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="filtroModulos" class="form-control" placeholder="Escribe para buscar asignatura o código...">
+                        </div>
                     </div>
+
+                    <div id="contenedorModulos">
+                        @foreach($modulosPorCiclo as $nombreCiclo => $modulos)
+                            <div class="ciclo-seccion mb-6">
+                                <h4 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-graduation-cap"></i> {{ $nombreCiclo }}</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    @foreach($modulos as $modulo)
+                                        <label class="modulo-card flex items-center p-3 border rounded-lg hover:bg-light cursor-pointer">
+                                            <input type="checkbox" name="modulos[]" value="{{ $modulo->id_modulo }}" class="mr-3">
+                                            <span class="text-sm"><strong>{{ $modulo->id_modulo }}</strong> - {{ $modulo->nombre }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
                 </form>
             </div>
         </div>
@@ -205,5 +209,22 @@
                     });
             });
         });
+        document.getElementById('filtroModulos').addEventListener('input', function() {
+            let busqueda = this.value.toLowerCase();
+            let items = document.querySelectorAll('.modulo-card');
+
+            items.forEach(item => {
+                let texto = item.textContent.toLowerCase();
+                // Si el texto coincide con la búsqueda, se muestra; si no, se oculta
+                item.style.display = texto.includes(busqueda) ? 'flex' : 'none';
+            });
+
+            // Opcional: Ocultar el título del ciclo si no hay módulos visibles en ese grupo
+            document.querySelectorAll('.ciclo-seccion').forEach(seccion => {
+                let visibles = seccion.querySelectorAll('.modulo-card[style="display: flex;"]').length;
+                seccion.style.display = (visibles > 0 || busqueda === "") ? 'block' : 'none';
+            });
+        });
+
     </script>
 </x-app-layout>
