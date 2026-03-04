@@ -31,7 +31,7 @@ class AltaDocenteController extends Controller
 
     public function store(Request $request)
     {
-        $dni = strtolower($request->dni);
+        $dni = strtoupper($request->dni);
 
 
         $validator = Validator::make($request->all(), [
