@@ -52,8 +52,8 @@
                             <i class="fas fa-id-card mr-1"></i> DNI:
                         </label>
                         <input type="text" name="dni" id="dni"
-                            class="alta-input @error('dni') alta-input-error @enderror"
-                            required placeholder="Ej: 12345678A">
+                               class="alta-input @error('dni') alta-input-error @enderror"
+                               required placeholder="Ej: 12345678A">
                     </div>
 
                     <div class="alta-form-group">
@@ -61,8 +61,8 @@
                             <i class="fas fa-envelope mr-1"></i> Correo Electrónico (NO USAR el de @fpvirtualaragon.es):
                         </label>
                         <input type="email" name="email" id="email"
-                            class="alta-input @error('email') alta-input-error @enderror"
-                            required placeholder="docente@centro-educativo.com">
+                               class="alta-input @error('email') alta-input-error @enderror"
+                               required placeholder="docente@centro-educativo.com">
                     </div>
 
                     <div class="alta-form-group">
@@ -71,8 +71,8 @@
                         </label>
                         <div class="input-wrapper">
                             <input type="text" name="nombre" id="nombre"
-                                class="alta-input @error('nombre') alta-input-error @enderror"
-                                required placeholder="Nombre del docente">
+                                   class="alta-input @error('nombre') alta-input-error @enderror"
+                                   required placeholder="Nombre del docente">
                             <i id="toggle-nombre" class="fa-solid fa-lock toggle-icon" title="Editar" style="display: none;"></i>
                         </div>
                     </div>
@@ -83,36 +83,22 @@
                         </label>
                         <div class="input-wrapper">
                             <input type="text" name="apellido" id="apellido"
-                                class="alta-input @error('apellido') alta-input-error @enderror"
-                                required placeholder="Todos los apellidos del docente">
+                                   class="alta-input @error('apellido') alta-input-error @enderror"
+                                   required placeholder="Todos los apellidos del docente">
                             <i id="toggle-apellido" class="fa-solid fa-lock toggle-icon" title="Editar" style="display: none;"></i>
                         </div>
                     </div>
-                    <hr class="my-6">
 
-                    <div class="mb-4">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fas fa-search"></i></span>
-                            <input type="text" id="filtroModulos" class="form-control" placeholder="Escribe para buscar asignatura o código...">
-                        </div>
+                    <input type="hidden" name="id_centro" value="{{ $centro->id_centro }}">
+
+                    <div class="alta-form-actions">
+                        <a href="{{ route('dashboard') }}" class="alta-button alta-button-secondary">
+                            <i class="fas fa-arrow-left mr-2"></i> Volver al panel
+                        </a>
+                        <button type="submit" class="alta-button alta-button-primary">
+                            <i class="fas fa-user-plus mr-2"></i> Guardar docente
+                        </button>
                     </div>
-
-                    <div id="contenedorModulos">
-                        @foreach($modulosPorCiclo as $nombreCiclo => $modulos)
-                            <div class="ciclo-seccion mb-6">
-                                <h4 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-graduation-cap"></i> {{ $nombreCiclo }}</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    @foreach($modulos as $modulo)
-                                        <label class="modulo-card flex items-center p-3 border rounded-lg hover:bg-light cursor-pointer">
-                                            <input type="checkbox" name="modulos[]" value="{{ $modulo->id_modulo }}" class="mr-3">
-                                            <span class="text-sm"><strong>{{ $modulo->id_modulo }}</strong> - {{ $modulo->nombre }}</span>
-                                        </label>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-
                 </form>
             </div>
         </div>
@@ -209,22 +195,5 @@
                     });
             });
         });
-        document.getElementById('filtroModulos').addEventListener('input', function() {
-            let busqueda = this.value.toLowerCase();
-            let items = document.querySelectorAll('.modulo-card');
-
-            items.forEach(item => {
-                let texto = item.textContent.toLowerCase();
-                // Si el texto coincide con la búsqueda, se muestra; si no, se oculta
-                item.style.display = texto.includes(busqueda) ? 'flex' : 'none';
-            });
-
-            // Opcional: Ocultar el título del ciclo si no hay módulos visibles en ese grupo
-            document.querySelectorAll('.ciclo-seccion').forEach(seccion => {
-                let visibles = seccion.querySelectorAll('.modulo-card[style="display: flex;"]').length;
-                seccion.style.display = (visibles > 0 || busqueda === "") ? 'block' : 'none';
-            });
-        });
-
     </script>
 </x-app-layout>

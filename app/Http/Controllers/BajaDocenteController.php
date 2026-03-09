@@ -6,14 +6,15 @@ use Illuminate\Http\Request;
 use App\Models\Docente;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\Tutor;        
-use App\Models\Coordinador;  
+use App\Models\Tutor;
+use App\Models\Coordinador;
 use App\Models\Docencia;
 
 class BajaDocenteController extends Controller
 {
     public function index()
     {
+
         $centro = Auth::user()->centro;
         $idCentro = $centro->id_centro;
 
@@ -41,6 +42,13 @@ class BajaDocenteController extends Controller
         DB::beginTransaction();
 
         try {
+            $dniUpper = strtoupper($dni);
+            // Buscamos al docente para poder usar su nombre en el mensaje
+            /*$docente = Docente::where('dni', $dniUpper)->firstOrFail();
+            $docente->update([
+                'de_baja' => true, // Marcamos como inactivo en Docker
+            ]);
+             */
             // Obtener todas las asignaciones antes de borrar
             /*$tutorias = Tutor::where('dni', $dni)->where('id_centro', $idCentro)->get();
             $coordinaciones = Coordinador::where('dni', $dni)->where('id_centro', $idCentro)->get();
@@ -75,7 +83,7 @@ class BajaDocenteController extends Controller
             // Si no pertenece a ningún otro centro, suspender usuario en Moodle
             if (!$otrosCentros) {
                 // Comando moosh para suspender cuenta
-                $usuarioMoodle = escapeshellarg($dni); 
+                $usuarioMoodle = escapeshellarg($dni);
                 $command = "moosh user-suspend " . $usuarioMoodle;
                 $this->ejecutarMoosh($command);
             }*/
@@ -89,10 +97,36 @@ class BajaDocenteController extends Controller
             return redirect()->route('docentes.index')->with('success', 'Docente dado de baja correctamente.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('docentes.index')->withErrors(['error' => 'Error al dar de baja al docente.']);
+            return redirect()->route('docentes.index')
+                ->withErrors(['error' => 'Error al dar de baja al docente: ' . $e->getMessage()]);
         }
     }
+    public function reactivar($dni)
+    {
+        DB::beginTransaction();
 
+        try {
+            $dniUpper = strtoupper($dni);
+
+            // Buscamos al docente que está de baja
+            $docente = Docente::where('dni', $dniUpper)->firstOrFail();
+
+            // Cambiamos el estado a ACTIVO
+            $docente->update([
+                'de_baja' => false,
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('docentes.index')
+                ->with('success', "El docente {$docente->nombre} ha sido reactivado y ya puede acceder al sistema.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('docentes.index')
+                ->withErrors(['error' => 'Error al reactivar al docente: ' . $e->getMessage()]);
+        }
+    }
 
     //Ejecuta & Control de errores para comandos moosh
     protected function ejecutarMoosh($command)

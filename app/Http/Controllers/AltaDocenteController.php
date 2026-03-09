@@ -19,7 +19,7 @@ class AltaDocenteController extends Controller
         $modulosPorCiclo = \Illuminate\Support\Facades\DB::table('ciclos')
             ->join('ciclo_modulo', 'ciclos.id_ciclo', '=', 'ciclo_modulo.id_ciclo')
             ->join('modulos', 'ciclo_modulo.id_modulo', '=', 'modulos.id_modulo')
-            ->select('ciclos.nombre as nombre_ciclo', 'modulos.*')
+            ->select('ciclos.nombre as nombre_ciclo', 'ciclos.id_ciclo' , 'modulos.*')
             ->get()
             ->groupBy('nombre_ciclo'); // Esto los agrupa automáticamente por el nombre del ciclo
         return view('alta_docente', compact('centro', 'modulosPorCiclo'));
@@ -40,8 +40,11 @@ class AltaDocenteController extends Controller
     {
         // 1. Validamos que el profesor esté y que haya al menos un módulo seleccionado
         $request->validate([
-            'dni' => 'required',
-            'modulos' => 'required|array|min:1', // Obligamos a marcar al menos uno
+            'dni' => 'required|string|max:10',
+            'email' => 'required|email',
+            'nombre' => 'required|string|max:255',
+            'apellido' => 'required|string|max:255',
+            'id_centro' => 'required'
         ]);
 
         $dni = strtoupper($request->dni);
@@ -54,7 +57,7 @@ class AltaDocenteController extends Controller
                 'max:10',
                 'regex:/^(\d{8}|[XYZ]\d{7})[A-Z]$/i',
                 function ($attribute, $value, $fail) use ($request) {
-                    if (CentroDocente::where('dni', strtolower($value))
+                    if (CentroDocente::where('dni', strtoupper($value))
                         ->where('id_centro', $request->id_centro)
                         ->exists()) {
                         $fail('Este docente ya está asignado a este centro.');
@@ -95,15 +98,19 @@ class AltaDocenteController extends Controller
             // Primero borramos las asignaciones antiguas para no duplicar (si es necesario)
         DB::table('docente_modulo_ciclo')->where('dni', $dni)->delete();
             // Luego insertamos cada módulo seleccionado
-            foreach ($request->modulos as $id_modulo) {
-                DB::table('docente_modulo_ciclo')->insert([
-                    'dni' => $dni,
-                    'id_modulo' => $id_modulo,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
+            if ($request->has('modulos')) {
+                // Obtenemos el ID del centro del usuario logueado para que sea automático
+                $id_centro = Auth::user()->centro->id_centro;
+                foreach ($request->modulos as $id_modulo) {
 
+                    DB::table('docente_modulo_ciclo')->insert([
+                        'dni' => strtoupper($dni),
+                        'id_modulo' => $id_modulo,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
             if ($docente) {
                 // Si el nombre o apellido han cambiado, actualizarlos
                 $nombreNuevo = $this->normalizarNombreYApellido($request->nombre);
