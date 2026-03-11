@@ -38,14 +38,15 @@ npm run dev
 
 A continuación se detallan los principales problemas encontrados durante el desarrollo y las soluciones técnicas implementadas:
 
-| Problema | Causa Raíz | Solución Implementada |
-| --- | --- | --- |
-| **Error de Conexión DB** | El archivo `.env` apuntaba a `127.0.0.1` en lugar del nombre del servicio en Docker. | Se configuró `DB_HOST=db` para permitir la comunicación interna entre los contenedores de Docker. |
-| **Violación de Integridad (1452)** | Intento de insertar asignaciones de módulos antes de que el docente existiera en la tabla principal. | Se reestructuró la lógica del controlador para asegurar la creación del registro "Padre" (Docente) antes que cualquier relación "Hijo". |
-| **Campos Obligatorios (1364)** | La tabla relacional requería `id_centro` pero el formulario no lo enviaba explícitamente. | Se implementó la recuperación automática del `id_centro` mediante el objeto `Auth::user()` para garantizar la integridad de los datos. |
-| **Datos Corruptos en Nombres** | Entrada de usuarios con caracteres especiales como `º` o `.` que ensuciaban los listados. | Creación de un método de sanitización en el controlador que limpia los strings y aplica formato `Title Case` automáticamente. |
-| **Falsas Alarmas en Docencia** | El sistema contaba a docentes de baja como "activos", dando avisos erróneos de sobreasignación. | Se añadieron filtros `where('de_baja', false)` en las consultas de conteo y en los desplegables de selección. |
+- Conexión entre mi ordenador y la base de datos: Mi ordenador no podía "hablar" con la base de datos porque estaba dentro de Docker. Lo arreglé abriendo un túnel en el puerto 23306, así puedo gestionar los datos de la base de datos instituto (con usuario y contraseña alumno/alumno) directamente desde mi entorno local.
 
+- Problemas para acceder al panel (Login): Al intentar entrar, el sistema rechazaba mis datos. Me di cuenta de que estaba intentando usar cuentas que no existían todavía. Lo solucioné revisando los seeders del proyecto y usando los correos y contraseñas oficiales que ya venían preparados en la base de datos para las pruebas.
+
+- Error al asignar clases a los profesores: El sistema daba un error de "integridad" si intentaba ponerle módulos a un profesor antes de que estuviera registrado en la tabla principal. He reordenado el código para que primero se cree el profesor y, justo después, se le asigne toda su docencia de golpe.
+
+- El programa no sabía en qué centro estaba: Antes, al dar de alta a un profesor, el sistema se perdía porque le faltaba el dato del centro. Ahora el programa es más automático: detecta qué usuario ha entrado y asigna al profesor directamente a su mismo centro educativo.
+
+Limpieza de nombres y apellidos: Había nombres que aparecían con puntos o símbolos como "º" que ensuciaban la lista. He creado un filtro que limpia esos símbolos y pone siempre la primera letra en mayúscula para que todo el listado se vea uniforme.
 ---
 
 ## Características Principales
@@ -83,3 +84,5 @@ Gestión de estados mediante el campo `de_baja` para mantener la integridad hist
 * [x] **Tarea G**: Normalización de nombres mediante `str_replace`.
 
 ---
+
+
