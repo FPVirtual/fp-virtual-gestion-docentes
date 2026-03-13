@@ -64,17 +64,29 @@ private function normalizarNombreYApellido($string) {
 
 ```
 
-### 2. Buscador en Tiempo Real (UX)
-
-Uso de **Alpine.js** para el filtrado instantáneo de tablas. Permite localizar docentes por nombre o DNI sin realizar peticiones adicionales al servidor, optimizando el rendimiento.
-
-### 3. Sistema de "Soft Delete" y Reactivación
+### 2. Sistema de "Soft Delete" y Reactivación
 
 Gestión de estados mediante el campo `de_baja` para mantener la integridad histórica:
 
 * **Dar de baja**: Desactiva al docente mediante un modal de confirmación con Alpine.js.
+```php
+$docentes = Docente::whereIn('dni', function ($query) use ($centro) {
+$query->select('dni')
+->from('centro_docente')
+->where('id_centro', $centro->id_centro);
+})
+->where('de_baja', false) // <--- el profesor desaparezca del desplegable
+->get(['dni', 'nombre', 'apellido']);
+```
 * **Reactivar**: Botón dinámico que permite reincorporar al personal con un solo clic, reactivando su estado en la base de datos.
 
+```php
+@if(!$docente->de_baja)
+<button class="btn-rojo">Dar de Baja</button>
+@else
+<button class="btn-verde">Reactivar Docente</button>
+@endif
+```
 ---
 
 ## Estado del Proyecto
@@ -82,6 +94,7 @@ Gestión de estados mediante el campo `de_baja` para mantener la integridad hist
 * [x] **Tarea A, B, C**: Altas con validación de DNI/Email.
 * [x] **Tarea D**: Sistema de Bajas y Reactivaciones.
 * [x] **Tarea G**: Normalización de nombres mediante `str_replace`.
+
 
 ---
 

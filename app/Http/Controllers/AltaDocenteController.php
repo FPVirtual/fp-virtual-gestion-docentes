@@ -16,13 +16,7 @@ class AltaDocenteController extends Controller
     public function create()
     {
         $centro = Auth::user()->centro;
-        $modulosPorCiclo = \Illuminate\Support\Facades\DB::table('ciclos')
-            ->join('ciclo_modulo', 'ciclos.id_ciclo', '=', 'ciclo_modulo.id_ciclo')
-            ->join('modulos', 'ciclo_modulo.id_modulo', '=', 'modulos.id_modulo')
-            ->select('ciclos.nombre as nombre_ciclo', 'ciclos.id_ciclo' , 'modulos.*')
-            ->get()
-            ->groupBy('nombre_ciclo'); // Esto los agrupa automáticamente por el nombre del ciclo
-        return view('alta_docente', compact('centro', 'modulosPorCiclo'));
+        return view('alta_docente', compact('centro'));
     }
 
     /**
