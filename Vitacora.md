@@ -42,9 +42,6 @@ A continuación se detallan los principales problemas encontrados durante el des
 
 - Problemas para acceder al panel (Login): Al intentar entrar, el sistema rechazaba mis datos. Me di cuenta de que estaba intentando usar cuentas que no existían todavía. Lo solucioné revisando los seeders del proyecto y usando los correos y contraseñas oficiales que ya venían preparados en la base de datos para las pruebas.
 
-- Error al asignar clases a los profesores: El sistema daba un error de "integridad" si intentaba ponerle módulos a un profesor antes de que estuviera registrado en la tabla principal. He reordenado el código para que primero se cree el profesor y, justo después, se le asigne toda su docencia de golpe.
-
-- El programa no sabía en qué centro estaba: Antes, al dar de alta a un profesor, el sistema se perdía porque le faltaba el dato del centro. Ahora el programa es más automático: detecta qué usuario ha entrado y asigna al profesor directamente a su mismo centro educativo.
 
 Limpieza de nombres y apellidos: Había nombres que aparecían con puntos o símbolos como "º" que ensuciaban la lista. He creado un filtro que limpia esos símbolos y pone siempre la primera letra en mayúscula para que todo el listado se vea uniforme.
 ---
