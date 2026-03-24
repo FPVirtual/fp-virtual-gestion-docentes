@@ -17,7 +17,7 @@
                         return implode(', ', array_slice($roles, 0, -1)) . ' y ' . $roles[$count - 1];
                     }
                 @endphp
-                
+
                 @if(session('success'))
                         <div class="alert alert-success">
                             <i class="fas fa-check-circle mr-2"></i>
@@ -77,46 +77,41 @@
                                     <td>{{ $docente->apellido }}</td>
                                     <td class="uppercase">{{ $docente->dni }}</td>
                                     <td>
-                                        <button @click="showModal = true"  class="button-tiny button-danger" {{ $docente->de_baja ? 'disabled' : '' }}>
-                                            <i class="fas fa-trash-alt mr-1"></i>
-                                        </button>
+                                        @if($docente->de_baja)
+                                            {{-- Botón para los que están de baja (VERDE) --}}
+                                            <form method="POST" action="{{ route('docente.reactivar', $docente->dni) }}" class="inline">
+                                                @csrf
+                                                <button type="submit" class="button-tiny button-success" title="Volver a dar de alta">
+                                                    <i class="fas fa-user-plus mr-1"></i> Reactivar
+                                                </button>
+                                            </form>
+                                        @else
+                                            {{-- Botón para los que están activos (ROJO - Abre el modal) --}}
+                                            <button @click="showModal = true" class="button-tiny button-danger" title="Dar de baja">
+                                                <i class="fas fa-trash-alt mr-1"></i>
+                                            </button>
+                                        @endif
 
-                                        <!-- Modal -->
-                                        <div x-show="showModal" class="modal">
+                                        <div x-show="showModal" class="modal" x-cloak @click.away="showModal = false">
                                             <div class="modal-content">
                                                 <h2 class="modal-title">
                                                     <i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i>
                                                     Confirmar baja
                                                 </h2>
                                                 <p class="modal-text">
-                                                    @php
-                                                        $roles = [];
-                                                        if ($docente->es_tutor) $roles[] = 'Tutor';
-                                                        if ($docente->es_coordinador) $roles[] = 'Coordinador';
-                                                        if ($docente->tiene_docencia) $roles[] = 'Docente';
-                                                    @endphp
-
-                                                    El docente <b>{{ $docente->nombre }} {{ $docente->apellido }}</b> (DNI: <b class="uppercase">{{ $docente->dni }}</b>)
-                                                    @if(count($roles) > 0)
-                                                        es actualmente <b>{{ rolesConY($roles) }}</b> en este centro.
-                                                        <br><br>¿Estás seguro de que deseas darlo de baja? Esta acción eliminará todas sus asignaciones.
-                                                    @else
-                                                        no tiene roles activos asignados.
-                                                        <br><br>¿Estás seguro de que deseas darlo de baja?
-                                                    @endif
-
-                                                    
+                                                    El docente <b>{{ $docente->nombre }} {{ $docente->apellido }}</b> dejará de estar activo en el centro.
+                                                    <br><br>¿Estás seguro?
                                                 </p>
 
                                                 <div class="modal-actions">
-                                                    <button @click="showModal = false" class="button button-secondary">
-                                                        <i class="fas fa-times mr-1"></i> Cancelar
+                                                    <button @click="showModal = false" type="button" class="button button-secondary">
+                                                        Cancelar
                                                     </button>
-                                                    <form method="POST" action="{{ route('docentes.destroy', $docente->dni) }}">
+                                                    {{-- Formulario que llama a la ruta de baja --}}
+                                                    <form method="POST" action="{{ route('docente.baja', $docente->dni) }}">
                                                         @csrf
-                                                        @method('DELETE')
                                                         <button type="submit" class="button button-danger">
-                                                            <i class="fas fa-trash-alt mr-1"></i> Sí, dar de baja
+                                                            Sí, dar de baja
                                                         </button>
                                                     </form>
                                                 </div>

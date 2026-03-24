@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Docente;  
+use App\Models\Docente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
@@ -19,16 +19,31 @@ class AltaDocenteController extends Controller
         return view('alta_docente', compact('centro'));
     }
 
+    /**
+     * Normaliza nombres quitando caracteres prohibidos y poniendo mayúsculas.
+     */
     private function normalizarNombreYApellido($string) {
-        return mb_convert_case(mb_strtolower($string, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
+        // Primero eliminamos los caracteres "º" y "."
+        $limpio = str_replace(['º', '.'], '', $string);
+
+        return mb_convert_case(mb_strtolower($limpio, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
     }
 
 
     public function store(Request $request)
     {
-        $dni = strtolower($request->dni);
+        // 1. Validamos que el profesor esté y que haya al menos un módulo seleccionado
+        $request->validate([
+            'dni' => 'required|string|max:10',
+            'email' => 'required|email',
+            'nombre' => 'required|string|max:255',
+            'apellido' => 'required|string|max:255',
+            'id_centro' => 'required'
+        ]);
 
-        
+        $dni = strtoupper($request->dni);
+
+
         $validator = Validator::make($request->all(), [
            'dni' => [
                 'required',
@@ -36,7 +51,7 @@ class AltaDocenteController extends Controller
                 'max:10',
                 'regex:/^(\d{8}|[XYZ]\d{7})[A-Z]$/i',
                 function ($attribute, $value, $fail) use ($request) {
-                    if (CentroDocente::where('dni', strtolower($value))
+                    if (CentroDocente::where('dni', strtoupper($value))
                         ->where('id_centro', $request->id_centro)
                         ->exists()) {
                         $fail('Este docente ya está asignado a este centro.');
@@ -58,6 +73,8 @@ class AltaDocenteController extends Controller
             'nombre' => 'required|string|max:255',
             'apellido' => 'required|string|max:255',
             'id_centro' => 'required|string',
+            // TAREA E: Validamos el nuevo campo de formación
+            'formacion' => 'nullable|boolean',
         ]);
 
         //Si da algun error
@@ -71,6 +88,23 @@ class AltaDocenteController extends Controller
             // Buscar el docente existente por DNI
             $docente = Docente::where('dni', $dni)->first();
 
+            // 2. ASIGNACIÓN MASIVA DE MÓDULOS
+            // Primero borramos las asignaciones antiguas para no duplicar (si es necesario)
+        DB::table('docente_modulo_ciclo')->where('dni', $dni)->delete();
+            // Luego insertamos cada módulo seleccionado
+            if ($request->has('modulos')) {
+                // Obtenemos el ID del centro del usuario logueado para que sea automático
+                $id_centro = Auth::user()->centro->id_centro;
+                foreach ($request->modulos as $id_modulo) {
+
+                    DB::table('docente_modulo_ciclo')->insert([
+                        'dni' => strtoupper($dni),
+                        'id_modulo' => $id_modulo,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
             if ($docente) {
                 // Si el nombre o apellido han cambiado, actualizarlos
                 $nombreNuevo = $this->normalizarNombreYApellido($request->nombre);
@@ -98,8 +132,8 @@ class AltaDocenteController extends Controller
 
                     // Comando moosh para actualizar el docente en Moodle ( Uso de escapehellarg para que los comandos sean seguros y no puedan poner algo malicioso los usuarios )
                     /*$command = "moosh user-update" .
-                        " --firstname " . escapeshellarg($request->nombre) . 
-                        " --lastname " . escapeshellarg($request->apellido) . 
+                        " --firstname " . escapeshellarg($request->nombre) .
+                        " --lastname " . escapeshellarg($request->apellido) .
                         " " . escapeshellarg($dni);
 
                     $this->ejecutarMoosh($command);*/
@@ -111,6 +145,8 @@ class AltaDocenteController extends Controller
                     'dni' => $dni,
                     'nombre' => $this->normalizarNombreYApellido($request->nombre),
                     'apellido' => $this->normalizarNombreYApellido($request->apellido),
+                    'formacion' => $request->boolean('formacion'), // Guardamos el booleano
+                    'email_virtual' => $request->email,
                 ]);
 
                 // Comando moosh para crear nuevo usuario en Moodle ( Uso de escapehellarg para que los comandos sean seguros y no puedan poner algo malicioso los usuarios )
@@ -119,7 +155,7 @@ class AltaDocenteController extends Controller
                     " --password " . escapeshellarg($dni) . // DNI de contraseña
                     " --firstname " . escapeshellarg($request->nombre) .
                     " --lastname " . escapeshellarg($request->apellido) .
-                    " " . escapeshellarg($dni); 
+                    " " . escapeshellarg($dni);
 
                 $this->ejecutarMoosh($command); */
             }
@@ -137,7 +173,7 @@ class AltaDocenteController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'Hubo un error al guardar el docente.'])->withInput();
+            return redirect()->back()->withErrors(['error' => 'Hubo un error al guardar el docente.' . $e->getMessage()])->withInput();
         }
 
     }
