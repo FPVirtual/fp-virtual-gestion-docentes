@@ -1,4 +1,4 @@
-<x-app-layout>
+git add .<x-app-layout>
     @push('styles')
         <link rel="stylesheet" href="{{ asset('css/establecerCoordinadorTutorDocencia.css') }}">
     @endpush
@@ -78,6 +78,7 @@
                                     <td class="uppercase">{{ $docente->dni }}</td>
                                     <td>
                                         @if($docente->de_baja)
+
                                             {{-- Botón para los que están de baja (VERDE) --}}
                                             <form method="POST" action="{{ route('docente.reactivar', $docente->dni) }}" class="inline">
                                                 @csrf
@@ -90,6 +91,15 @@
                                             <button @click="showModal = true" class="button-tiny button-danger" title="Dar de baja">
                                                 <i class="fas fa-trash-alt mr-1"></i>
                                             </button>
+
+                                        <button class="button-tiny button-warning" disabled title="El docente ya está de baja">
+                                            De baja
+                                        </button>
+                                        @else
+                                        <button @click="showModal = true"  class="button-tiny button-danger">
+                                            <i class="fas fa-trash-alt mr-1"></i>
+                                        </button>
+
                                         @endif
 
                                         <div x-show="showModal" class="modal" x-cloak @click.away="showModal = false">
