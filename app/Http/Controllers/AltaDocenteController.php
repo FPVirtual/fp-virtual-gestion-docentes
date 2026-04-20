@@ -34,7 +34,7 @@ class AltaDocenteController extends Controller
     {
         // 1. Validamos que el profesor esté y que haya al menos un módulo seleccionado
         $request->validate([
-            'dni' => 'required|string|max:10',
+            'dni' => 'required|string|max:10|unique:docentes,dni',
             'email' => 'required|email',
             'nombre' => 'required|string|max:255',
             'apellido' => 'required|string|max:255',

@@ -88,9 +88,11 @@ class BajaDocenteController extends Controller
                 $this->ejecutarMoosh($command);
             }*/
 
-            Docente::where('dni', $dni)->update([
-                'de_baja' => true,
-            ]);
+            $docente = Docente::where('dni', $dniUpper)->firstOrFail();
+            $docente->de_baja = true;
+            $docente->save();
+
+
 
             DB::commit();
 
