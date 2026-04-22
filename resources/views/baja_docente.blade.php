@@ -91,15 +91,6 @@
                                             <button @click="showModal = true" class="button-tiny button-danger" title="Dar de baja">
                                                 <i class="fas fa-trash-alt mr-1"></i>
                                             </button>
-
-                                        <button class="button-tiny button-warning" disabled title="El docente ya está de baja">
-                                            De baja
-                                        </button>
-                                        @else
-                                        <button @click="showModal = true"  class="button-tiny button-danger">
-                                            <i class="fas fa-trash-alt mr-1"></i>
-                                        </button>
-
                                         @endif
 
                                         <div x-show="showModal" class="modal" x-cloak @click.away="showModal = false">
