@@ -169,7 +169,7 @@ class AltaDocenteController extends Controller
 
             DB::commit();
 
-            return redirect()->route('dashboard')->with('alta_docente_correcto', 'Docente asignado correctamente.');
+            return redirect()->route('establecer_docencia.index')->with('success', 'Docente asignado correctamente.')->with('docente_dni', $docente->dni);
 
         } catch (\Exception $e) {
             DB::rollBack();
