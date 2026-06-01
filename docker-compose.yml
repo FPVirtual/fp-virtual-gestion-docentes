@@ -21,7 +21,7 @@ services:
         networks:
             - red-interna
         environment:
-            MYSQL_DATABASE: instituto
+            MYSQL_DATABASE: gestor_profesores
             MYSQL_USER: alumno
             MYSQL_PASSWORD: alumno
             MYSQL_ROOT_PASSWORD: root12345

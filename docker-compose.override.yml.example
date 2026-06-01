@@ -1,16 +1,21 @@
-version: '3.8'
+# Plantilla del override de Docker Compose para desarrollo
+#
+# Cópialo a `docker-compose.override.yml` (ya está en .gitignore) y Docker Compose
+# lo fusionará automáticamente con docker-compose.yml en cada `docker compose up`
+#
+# Qué hace:
+#   - Monta el código del host sobre /var/www/html: los cambios en .php / .blade
+#     se ven al instante en el contenedor, sin reconstruir la imagen
+#   - Protege vendor/, node_modules/ y public/build/ del montaje: el contenedor
+#     usa los que se generaron durante el `docker compose build`, así no hace
+#     falta PHP/Node en el host
+
 services:
-  app:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./:/var/www/html
-    environment:
-      - DB_HOST=mysql
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-    depends_on:
-      - mysql
-    command: php artisan serve --host=0.0.0.0 --port=8000
+    app-backend:
+        volumes:
+            - ./:/var/www/html
+            - /var/www/html/vendor
+            - /var/www/html/node_modules
+            - /var/www/html/public/build
+        environment:
+            DB_HOST: mysql-db
