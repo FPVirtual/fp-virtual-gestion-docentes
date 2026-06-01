@@ -6,9 +6,11 @@
 # Qué hace:
 #   - Monta el código del host sobre /var/www/html: los cambios en .php / .blade
 #     se ven al instante en el contenedor, sin reconstruir la imagen
-#   - Protege vendor/, node_modules/ y public/build/ del montaje: el contenedor
-#     usa los que se generaron durante el `docker compose build`, así no hace
-#     falta PHP/Node en el host
+#   - Protege vendor/, node_modules/, public/build/ y bootstrap/cache/ del
+#     montaje: el contenedor usa los que se generaron durante el
+#     `docker compose build` (con --no-dev), así no hace falta PHP/Node en el
+#     host y un bootstrap/cache local con paquetes de dev (p.ej. laravel/pail)
+#     no rompe el contenedor
 
 services:
     app-backend:
@@ -17,5 +19,6 @@ services:
             - /var/www/html/vendor
             - /var/www/html/node_modules
             - /var/www/html/public/build
+            - /var/www/html/bootstrap/cache
         environment:
             DB_HOST: mysql-db

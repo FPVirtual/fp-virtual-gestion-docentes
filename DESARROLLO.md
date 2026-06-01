@@ -46,7 +46,7 @@ App disponible en **http://localhost:8082**.
   - **`app-backend`** — PHP 8.2 + Laravel sirviendo en `:8000` (mapeado al `:8082` del host).
   - **`mysql-db`** — MySQL 8 con la BD `gestor_profesores` (mapeada al `:3306` del host para que puedas conectar con DBeaver/TablePlus).
 - El override monta tu carpeta local sobre `/var/www/html` del contenedor: editas un `.php` en tu editor, el cambio se ve al instante sin reconstruir.
-- `vendor/`, `node_modules/` y `public/build/` están protegidos del montaje y se usan los que generó la imagen durante el build. Por eso no necesitas PHP/Node en el host.
+- `vendor/`, `node_modules/`, `public/build/` y `bootstrap/cache/` están protegidos del montaje y se usan los que generó la imagen durante el build. Por eso no necesitas PHP/Node en el host. (Proteger `bootstrap/cache/` evita que un manifiesto de paquetes generado en el host —con dependencias de dev como `laravel/pail`— se cuele en el contenedor, que se construye con `--no-dev`.)
 
 ### Comandos del día a día
 
@@ -145,11 +145,11 @@ DB_CONNECTION=mariadb
 DB_HOST=mysql-db
 DB_PORT=3306
 DB_DATABASE=gestor_profesores
-DB_USERNAME=alumno
-DB_PASSWORD=alumno
+DB_USERNAME=gestor
+DB_PASSWORD=gestor
 ```
 
-> `DB_HOST=mysql-db` es el nombre del servicio en la red interna de Docker. El override ya lo fuerza desde el `environment`, pero conviene tenerlo también en el `.env` por si arrancas comandos `artisan` desde el host.
+> `DB_HOST=mysql-db` es el nombre del servicio en la red interna de Docker. **Tiene que estar en el `.env`**: el servidor web (`php artisan serve`) lee el host desde ahí, así que si dejas `127.0.0.1` la app dará `Connection refused` dentro del contenedor. (El `environment` del override solo cubre los comandos que lanzas con `docker compose exec`.)
 
 **Si usas PHP en el host**: pon los datos de tu MySQL/MariaDB local (host normalmente `127.0.0.1`, usuario y contraseña los que tengas configurados).
 
@@ -236,16 +236,28 @@ El puerto `3306` está expuesto. Configura DBeaver/TablePlus:
 | Host | `127.0.0.1` |
 | Port | `3306` |
 | Database | `gestor_profesores` |
-| User | `alumno` o `root` |
-| Password | `alumno` o `root12345` |
+| User | `gestor` o `root` |
+| Password | `gestor` o `root12345` |
 
 ## Problemas frecuentes
 
 **"Vite manifest not found"**  
 La imagen ya trae el build hecho. Si te aparece, es porque tu override está pisando `public/build/`. Asegúrate de tener la línea `- /var/www/html/public/build` en `docker-compose.override.yml`, o ejecuta `docker compose exec app-backend npm run build`.
 
-**"Access denied for user"**  
-El `.env` y `docker-compose.yml` no concuerdan. Verifica que `DB_USERNAME`/`DB_PASSWORD` del `.env` coinciden con `MYSQL_USER`/`MYSQL_PASSWORD` del `docker-compose.yml` (o usa `root`/`root12345` si quieres conectar como root).
+**El contenedor `app-backend` arranca y muere — `Class "Laravel\Pail\PailServiceProvider" not found`**  
+Tu carpeta local tiene un `bootstrap/cache/` generado por un `composer install` en el host (con dependencias de dev). Al montar el código, ese caché se cuela en el contenedor, que se construyó con `--no-dev` y no tiene `laravel/pail`. Solución: que tu `docker-compose.override.yml` incluya la línea `- /var/www/html/bootstrap/cache` (ver plantilla) y recrea el contenedor con `docker compose up -d --force-recreate`. Como alternativa puntual, borra los `.php` de tu `bootstrap/cache/` local.
+
+**"[1045] Access denied for user"**  
+El `.env` y `docker-compose.yml` no concuerdan. Verifica que `DB_USERNAME`/`DB_PASSWORD` del `.env` coinciden con `MYSQL_USER`/`MYSQL_PASSWORD` del `docker-compose.yml` (`gestor`/`gestor`), o usa `root`/`root12345` si quieres conectar como root.
+
+**"[1044] Access denied for user 'gestor'@'%' to database 'gestor_profesores'"**  
+El usuario autentica bien pero no tiene permisos sobre la BD: tu volumen `db_data` se inicializó antes (con otro nombre de BD o de usuario). MySQL solo crea la BD y concede permisos en la **primera** inicialización (directorio de datos vacío); cambiar las variables después no re-aplica los grants. Como no hay datos reales en desarrollo, recrea el volumen:
+
+```bash
+docker compose down -v   # ¡borra la BD local!
+docker compose up -d
+docker compose exec app-backend php artisan migrate --seed
+```
 
 **Cambios en `.php` que no se reflejan**  
 No tienes el override copiado. Verifica que `docker-compose.override.yml` existe en la raíz del proyecto.
