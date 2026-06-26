@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CentroDocente;
 use App\Models\Docente;
+use App\Services\MoodleApiService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class AltaPlataformaController extends Controller
 {
@@ -60,8 +63,8 @@ class AltaPlataformaController extends Controller
             $buscar = $request->buscar;
             $query->where(function ($q) use ($buscar) {
                 $q->where('nombre', 'like', "%{$buscar}%")
-                  ->orWhere('apellido', 'like', "%{$buscar}%")
-                  ->orWhere('dni', 'like', "%{$buscar}%");
+                    ->orWhere('apellido', 'like', "%{$buscar}%")
+                    ->orWhere('dni', 'like', "%{$buscar}%");
             });
         }
 
@@ -168,9 +171,9 @@ class AltaPlataformaController extends Controller
         ];
 
         return response()->json([
-            'dni'           => $docente->dni,
-            'nombre'        => $docente->nombre,
-            'apellido'      => $docente->apellido,
+            'dni' => $docente->dni,
+            'nombre' => $docente->nombre,
+            'apellido' => $docente->apellido,
             'email_virtual' => $docente->email_virtual,
             'email_personal' => $emailPersonal,
             'google_csv'    => implode(',', $googleCols),
@@ -182,20 +185,63 @@ class AltaPlataformaController extends Controller
 
     // ── procesarAltas ─────────────────────────────────────────────────────────
 
-    public function procesarAltas(Request $request)
+    /**
+     * Da de alta en Moodle (vía API) los docentes seleccionados y marca como
+     * procesados los que se crearon o ya existían. Los que fallan no se marcan.
+     *
+     * Respuesta:
+     *   {
+     *     ok:      bool,
+     *     created: ["DNI", ...],   // creados ahora en Moodle
+     *     skipped: ["DNI", ...],   // ya existían en Moodle (marcados igual)
+     *     failed:  { "DNI": "mensaje de error", ... }
+     *   }
+     */
+    public function procesarAltas(Request $request, MoodleApiService $moodle)
     {
         $request->validate([
-            'ids'   => 'required|array|min:1',
+            'ids' => 'required|array|min:1',
             'ids.*' => 'integer|exists:docentes,id',
         ]);
 
-        Docente::whereIn('id', $request->ids)
+        $docentes = Docente::whereIn('id', $request->ids)
             ->where('de_baja', false)
-            ->update([
-                'is_procesado'    => true,
-                'fecha_procesado' => now(),
-            ]);
+            ->whereNotNull('email_virtual')
+            ->where('email_virtual', '!=', '')
+            ->get();
 
-        return response()->json(['ok' => true, 'procesados' => count($request->ids)]);
+        $resumen = $moodle->createUsers($docentes);
+
+        $dnisProcesados = array_merge($resumen['created'], $resumen['skipped']);
+        if ($dnisProcesados !== []) {
+            Docente::whereIn('dni', $dnisProcesados)
+                ->update([
+                    'is_procesado'    => true,
+                    'fecha_procesado' => now(),
+                ]);
+        }
+
+        // Matricular en cohortes/cursos a los docentes recién creados
+        foreach ($resumen['created'] as $dni) {
+            $docente = $docentes->firstWhere('dni', $dni);
+            if ($docente === null) {
+                continue;
+            }
+            try {
+                $moodle->enrollDocente($docente);
+            } catch (Throwable $e) {
+                Log::channel('moodle_api')->error('Error matriculando docente tras alta', [
+                    'dni'   => $dni,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'ok'      => $resumen['failed'] === [],
+            'created' => $resumen['created'],
+            'skipped' => $resumen['skipped'],
+            'failed'  => $resumen['failed'],
+        ]);
     }
 }

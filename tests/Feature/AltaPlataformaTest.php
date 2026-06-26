@@ -12,6 +12,7 @@ use App\Models\CentroDocente;
 use App\Models\Docente;
 use App\Models\Usuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -27,19 +28,46 @@ function adminUser(): Usuario
     return $admin;
 }
 
+/**
+ * Configura Moodle y fakea respuestas OK (usuario no existe → se crea con id=42).
+ * Llamar al inicio de los tests del bloque B que invocan procesarAltas.
+ */
+function fakeMoodleOk(): void
+{
+    config([
+        'services.moodle.url' => 'https://moodle.test',
+        'services.moodle.token' => 'fake-token',
+    ]);
+
+    Http::fake([
+        '*wsfunction=core_user_get_users_by_field*' => Http::response([], 200),
+        '*wsfunction=core_user_create_users*' => Http::response([['id' => 42, 'username' => 'profx']], 200),
+        // Fallback por si el matcher por URL no aplica (asForm => params en body):
+        '*' => function ($request) {
+            $body = (string) $request->body();
+            if (str_contains($body, 'core_user_create_users')) {
+                return Http::response([['id' => 42, 'username' => 'profx']], 200);
+            }
+
+            return Http::response([], 200);
+        },
+    ]);
+}
+
 function docenteConEmail(array $extra = []): Docente
 {
     static $seq = 0;
     $seq++;
+
     $dni = str_pad($seq, 8, '0', STR_PAD_LEFT) . 'T';
 
     return Docente::forceCreate(array_merge([
-        'dni'           => $dni,
-        'nombre'        => 'Docente' . $seq,
-        'apellido'      => 'Apellido' . $seq,
-        'email_virtual' => 'docente' . $seq . '@fpvirtualaragon.es',
-        'de_baja'       => false,
-        'is_procesado'  => false,
+        'dni'             => $dni,
+        'nombre'          => 'Docente' . $seq,
+        'apellido'        => 'Apellido' . $seq,
+        'email_virtual'   => 'docente' . $seq . '@fpvirtualaragon.es',
+        'de_baja'         => false,
+        'is_procesado'    => false,
         'fecha_procesado' => null,
     ], $extra));
 }
@@ -128,7 +156,8 @@ test('B1 · POST sin autenticación devuelve redirección', function () {
          ->assertRedirect();
 });
 
-test('B2 · procesarAltas marca is_procesado=true y guarda fecha_procesado', function () {
+test('B2 · procesarAltas crea el usuario en Moodle y marca is_procesado=true', function () {
+    fakeMoodleOk();
     $admin   = adminUser();
     $docente = docenteConEmail(['is_procesado' => false]);
 
@@ -147,6 +176,7 @@ test('B2 · procesarAltas marca is_procesado=true y guarda fecha_procesado', fun
 });
 
 test('B3 · procesarAltas no modifica docentes de baja', function () {
+    fakeMoodleOk();
     $admin  = adminUser();
     $bajado = docenteConEmail(['de_baja' => true, 'is_procesado' => false]);
 
@@ -160,7 +190,22 @@ test('B3 · procesarAltas no modifica docentes de baja', function () {
     ]);
 });
 
-test('B4 · procesarAltas valida que ids sea requerido', function () {
+test('B4 · procesarAltas varios docentes a la vez actualiza todos', function () {
+    fakeMoodleOk();
+    $admin = adminUser();
+    $d1    = docenteConEmail();
+    $d2    = docenteConEmail();
+
+    $response = $this->actingAs($admin)
+        ->postJson('/admin/alta-plataforma/procesar', ['ids' => [$d1->id, $d2->id]])
+        ->assertStatus(200)
+        ->assertJson(['ok' => true]);
+
+    expect($d1->fresh()->is_procesado)->toBeTrue();
+    expect($d2->fresh()->is_procesado)->toBeTrue();
+});
+
+test('B5 · procesarAltas valida que ids sea requerido', function () {
     $admin = adminUser();
 
     $this->actingAs($admin)
@@ -169,7 +214,7 @@ test('B4 · procesarAltas valida que ids sea requerido', function () {
          ->assertJsonValidationErrors(['ids']);
 });
 
-test('B5 · procesarAltas valida que ids sea un array', function () {
+test('B6 · procesarAltas valida que ids sea un array', function () {
     $admin = adminUser();
 
     $this->actingAs($admin)
@@ -178,7 +223,7 @@ test('B5 · procesarAltas valida que ids sea un array', function () {
          ->assertJsonValidationErrors(['ids']);
 });
 
-test('B6 · procesarAltas valida que los ids existen en la tabla docentes', function () {
+test('B7 · procesarAltas valida que los ids existen en la tabla docentes', function () {
     $admin = adminUser();
 
     $this->actingAs($admin)
@@ -187,7 +232,8 @@ test('B6 · procesarAltas valida que los ids existen en la tabla docentes', func
          ->assertJsonValidationErrors(['ids.0']);
 });
 
-test('B7 · procesarAltas devuelve JSON con ok=true y el número de procesados', function () {
+test('B8 · procesarAltas devuelve JSON con created, skipped y failed', function () {
+    fakeMoodleOk();
     $admin = adminUser();
     $d1    = docenteConEmail();
     $d2    = docenteConEmail();
@@ -195,7 +241,7 @@ test('B7 · procesarAltas devuelve JSON con ok=true y el número de procesados',
     $this->actingAs($admin)
          ->postJson('/admin/alta-plataforma/procesar', ['ids' => [$d1->id, $d2->id]])
          ->assertStatus(200)
-         ->assertJson(['ok' => true, 'procesados' => 2]);
+         ->assertJsonStructure(['ok', 'created', 'skipped', 'failed']);
 });
 
 // ── BLOQUE C: preview ─────────────────────────────────────────────────────────
@@ -271,21 +317,6 @@ test('C5 · moodle_csv tiene exactamente 29 columnas (mismo formato que Google W
     expect(count($cols))->toBe(29);
 });
 
-test('C7 · moodle_header tiene exactamente 29 nombres de columna', function () {
-    $admin   = adminUser();
-    $docente = docenteConEmail();
-
-    $response = $this->actingAs($admin)
-                     ->getJson("/admin/alta-plataforma/{$docente->id}/preview");
-
-    $header = $response->json('moodle_header');
-    $cols   = str_getcsv($header);
-
-    expect(count($cols))->toBe(29)
-         ->and($cols[0])->toBe('First Name [Required]')
-         ->and($cols[28])->toBe('Advanced Protection Program enrollment');
-});
-
 test('C6 · google_header tiene exactamente 29 nombres de columna', function () {
     $admin   = adminUser();
     $docente = docenteConEmail();
@@ -299,6 +330,21 @@ test('C6 · google_header tiene exactamente 29 nombres de columna', function () 
     expect(count($cols))->toBe(29)
          ->and($cols[0])->toBe('First Name [Required]')
          ->and($cols[2])->toBe('Email Address [Required]')
+         ->and($cols[28])->toBe('Advanced Protection Program enrollment');
+});
+
+test('C7 · moodle_header tiene exactamente 29 nombres de columna', function () {
+    $admin   = adminUser();
+    $docente = docenteConEmail();
+
+    $response = $this->actingAs($admin)
+                     ->getJson("/admin/alta-plataforma/{$docente->id}/preview");
+
+    $header = $response->json('moodle_header');
+    $cols   = str_getcsv($header);
+
+    expect(count($cols))->toBe(29)
+         ->and($cols[0])->toBe('First Name [Required]')
          ->and($cols[28])->toBe('Advanced Protection Program enrollment');
 });
 

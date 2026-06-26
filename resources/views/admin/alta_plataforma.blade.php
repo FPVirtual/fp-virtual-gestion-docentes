@@ -19,7 +19,7 @@
 
         <div class="panel">
             <h3 class="title">Alta en Plataforma</h3>
-            <p class="subtitle">Selecciona los docentes para generar los CSV de Google Workspace y Moodle.</p>
+            <p class="subtitle">Selecciona los docentes para descargar el CSV de Google Workspace y darlos de alta en Moodle vía API.</p>
 
             {{-- Filtros --}}
             <form method="GET" action="{{ route('admin.alta-plataforma') }}" class="flex flex-wrap gap-3 mb-5">
@@ -91,7 +91,7 @@
                         :disabled="selected.length === 0"
                         :class="{ 'opacity-50 cursor-not-allowed': selected.length === 0 }"
                         @click="abrirExport()">
-                    <i class="fas fa-file-csv mr-2"></i>Generar CSVs
+                    <i class="fas fa-cloud-upload-alt mr-2"></i>Dar de alta en plataformas
                 </button>
             </div>
         </div>
@@ -108,8 +108,8 @@
                         </p>
                         <p class="label">Google Workspace:</p>
                         <div class="csv-preview" x-text="csvLineGoogle(previewDocente)"></div>
-                        <p class="label mt-3">Moodle:</p>
-                        <div class="csv-preview" x-text="csvLineMoodle(previewDocente)"></div>
+                        <p class="label mt-3">Moodle (username creado vía API):</p>
+                        <div class="csv-preview" x-text="'prof' + (previewDocente.dni || '').toLowerCase()"></div>
                     </div>
                 </template>
                 <div class="modal-actions">
@@ -118,38 +118,85 @@
             </div>
         </div>
 
-        {{-- Modal: exportar y actualizar estado --}}
+        {{-- Modal: exportar Google CSV + crear en Moodle vía API --}}
         <div class="modal" x-show="showExport" x-cloak>
             <div class="modal-content" style="max-width:640px;">
-                <h4 class="modal-title">Exportar CSVs</h4>
+                <h4 class="modal-title">
+                    <i class="fas fa-file-download mr-2 text-indigo-500"></i>Alta en plataformas
+                </h4>
+
                 <p class="modal-text">
-                    Descarga los ficheros para
-                    <strong x-text="selectedDocentes().length"></strong>
-                    docente(s) seleccionado(s) y, cuando estés listo/a, cierra actualizando el estado.
+                    Para <strong x-text="selectedDocentes().length"></strong> docente(s) seleccionado(s):
+                    descarga el CSV para subirlo a Google Workspace y, después, crea los usuarios en Moodle vía API.
                 </p>
 
+                {{-- Paso 1: descarga Google CSV --}}
                 <div class="flex flex-wrap gap-3 mb-2">
                     <button class="button button-primary" @click="downloadCSV('google')">
                         <i class="fab fa-google mr-1"></i>Descargar CSV Google Workspace
-                    </button>
-                    <button class="button button-primary" @click="downloadCSV('moodle')">
-                        <i class="fas fa-graduation-cap mr-1"></i>Descargar CSV Moodle
                     </button>
                 </div>
 
                 <hr class="divider">
 
-                <div class="modal-actions">
-                    <button class="button button-secondary" @click="cerrarSinActualizar()">
-                        <i class="fas fa-times mr-1"></i>Cerrar sin actualizar estado
-                    </button>
-                    <button class="button button-success"
-                            :disabled="procesando"
-                            :class="{ 'opacity-60 cursor-not-allowed': procesando }"
-                            @click="cerrarActualizando()">
-                        <span x-show="!procesando"><i class="fas fa-check-circle mr-1"></i>Cerrar y actualizar estado</span>
-                        <span x-show="procesando"><i class="fas fa-spinner fa-spin mr-1"></i>Actualizando…</span>
-                    </button>
+                {{-- Paso 2: alta en Moodle vía API + resultado --}}
+                <div x-show="!resultado">
+                    <div class="modal-actions">
+                        <button class="button button-secondary" @click="cerrarSinActualizar()" :disabled="procesando">
+                            <i class="fas fa-times mr-1"></i>Cerrar
+                        </button>
+                        <button class="button button-success"
+                                :disabled="procesando"
+                                :class="{ 'opacity-60 cursor-not-allowed': procesando }"
+                                @click="crearEnMoodle()">
+                            <span x-show="!procesando">
+                                <i class="fas fa-graduation-cap mr-1"></i>Crear en Moodle
+                            </span>
+                            <span x-show="procesando">
+                                <i class="fas fa-spinner fa-spin mr-1"></i>Llamando a Moodle…
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Resumen del resultado --}}
+                <div x-show="resultado" x-cloak>
+                    <h5 class="font-semibold text-sm text-gray-700 mb-2">Resultado</h5>
+
+                    <div class="mb-2 text-sm">
+                        <span class="tick-ok"><i class="fas fa-check-circle"></i></span>
+                        <strong>Creados en Moodle:</strong>
+                        <span x-text="resultado?.created?.length ?? 0"></span>
+                        <template x-if="resultado?.created?.length">
+                            <div class="csv-preview" x-text="resultado.created.join(', ')"></div>
+                        </template>
+                    </div>
+
+                    <div class="mb-2 text-sm">
+                        <span class="text-amber-600"><i class="fas fa-info-circle"></i></span>
+                        <strong>Ya existían (marcados como procesados):</strong>
+                        <span x-text="resultado?.skipped?.length ?? 0"></span>
+                        <template x-if="resultado?.skipped?.length">
+                            <div class="csv-preview" x-text="resultado.skipped.join(', ')"></div>
+                        </template>
+                    </div>
+
+                    <div class="mb-3 text-sm">
+                        <span class="tick-no"><i class="fas fa-times-circle"></i></span>
+                        <strong>Fallidos:</strong>
+                        <span x-text="Object.keys(resultado?.failed ?? {}).length"></span>
+                        <template x-for="[dni, err] in Object.entries(resultado?.failed ?? {})" :key="dni">
+                            <div class="csv-preview">
+                                <span class="font-semibold" x-text="dni"></span>: <span x-text="err"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="button button-secondary" @click="cerrarConResultado()">
+                            <i class="fas fa-check mr-1"></i>Cerrar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -166,6 +213,7 @@ document.addEventListener('alpine:init', () => {
         showExport: false,
         previewDocente: null,
         procesando: false,
+        resultado: null,
         docenteMap: @json($docentesJson),
 
         getEstado(id) {
@@ -194,6 +242,7 @@ document.addEventListener('alpine:init', () => {
         },
         abrirExport() {
             if (this.selected.length === 0) return;
+            this.resultado  = null;
             this.showExport = true;
         },
 
@@ -220,32 +269,8 @@ document.addEventListener('alpine:init', () => {
             return cols.join(',');
         },
 
-        csvLineMoodle(d) {
-            const cols = [
-                d.nombre         || '',
-                d.apellido       || '',
-                d.email_virtual  || '',
-                'Cambiam3!_',
-                '',
-                '/Profesorado',
-                '',
-                d.email_personal || '',
-                '',
-                '',
-                '', '', '', '', '', '',
-                d.dni            || '',
-                '', '', '', '', '', '', '', '',
-                'TRUE',
-                '',
-                '',
-                'FALSE',
-            ];
-            return cols.join(',');
-        },
-
         downloadCSV(tipo) {
-            const docs  = this.selectedDocentes();
-            let   lines = [];
+            const docs   = this.selectedDocentes();
             const header = 'First Name [Required],Last Name [Required],Email Address [Required],' +
                 'Password [Required],Password Hash Function [UPLOAD ONLY],Org Unit Path [Required],' +
                 'New Primary Email [UPLOAD ONLY],Recovery Email,Home Secondary Email,Work Secondary Email,' +
@@ -255,50 +280,84 @@ document.addEventListener('alpine:init', () => {
                 'Change Password at Next Sign-In,New Status [UPLOAD ONLY],New Licenses [UPLOAD ONLY],' +
                 'Advanced Protection Program enrollment';
 
-            lines.push(header);
-            docs.forEach(d => lines.push(tipo === 'google' ? this.csvLineGoogle(d) : this.csvLineMoodle(d)));
+            const lines = [header];
+            docs.forEach(d => lines.push(this.csvLineGoogle(d)));
 
             const bom  = '﻿';
             const blob = new Blob([bom + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a');
             a.href     = url;
-            a.download = tipo === 'google' ? 'alta_google_workspace.csv' : 'alta_moodle.csv';
+            a.download = 'alta_google_workspace.csv';
             a.click();
             URL.revokeObjectURL(url);
         },
 
         cerrarSinActualizar() {
+            if (this.procesando) return;
             this.showExport = false;
+            this.resultado  = null;
         },
 
-        cerrarActualizando() {
+        cerrarConResultado() {
+            this.showExport = false;
+            this.resultado  = null;
+            this.selected   = [];
+            if (this.$refs.checkAll) {
+                this.$refs.checkAll.checked = false;
+                this.$refs.checkAll.indeterminate = false;
+            }
+        },
+
+        // ── Alta en Moodle vía API ─────────────────────────────────────
+        crearEnMoodle() {
             if (this.procesando) return;
             this.procesando = true;
-            const token      = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-            const idsAmarcar = [...this.selected];
+
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+            const ids   = [...this.selected];
 
             fetch('{{ route("admin.alta-plataforma.procesar") }}', {
                 method:  'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
-                body:    JSON.stringify({ ids: idsAmarcar }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'Accept':       'application/json',
+                },
+                body: JSON.stringify({ ids }),
             })
-            .then(r => r.ok ? r.json() : Promise.reject(r))
-            .then(() => {
-                const ahora = new Date().toLocaleString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                });
-                idsAmarcar.forEach(id => {
-                    const d = this.docenteMap.find(d => d.id === Number(id));
-                    if (d) { d.is_procesado = true; d.fecha_procesado = ahora; }
-                });
-                this.showExport = false;
-                this.selected   = [];
-                if (this.$refs.checkAll) this.$refs.checkAll.checked = false;
+            .then(async r => {
+                const body = await r.json().catch(() => null);
+                if (!r.ok) throw body || { failed: { '_': `HTTP ${r.status}` } };
+                return body;
             })
-            .catch(() => alert('Error al actualizar el estado. Inténtalo de nuevo.'))
-            .finally(() => { this.procesando = false; });
+            .then(body => {
+                this.resultado = body;
+
+                const dnisOk = new Set([...(body.created || []), ...(body.skipped || [])]);
+                if (dnisOk.size > 0) {
+                    const ahora = new Date().toLocaleString('es-ES', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                    });
+                    this.docenteMap.forEach(d => {
+                        if (dnisOk.has(d.dni)) {
+                            d.is_procesado    = true;
+                            d.fecha_procesado = ahora;
+                        }
+                    });
+                }
+            })
+            .catch(err => {
+                this.resultado = {
+                    created: [],
+                    skipped: [],
+                    failed:  (err && err.failed) ? err.failed : { '_': 'Error de red llamando al servidor' },
+                };
+            })
+            .finally(() => {
+                this.procesando = false;
+            });
         },
     }));
 });
