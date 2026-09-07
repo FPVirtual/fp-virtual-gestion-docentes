@@ -1,153 +1,119 @@
 # fp-virtual-gestion-docentes
 
-Aplicación para la gestión del profesorado en FP virtual en Aragón
+Aplicación web para la **gestión del profesorado de FP Virtual en Aragón** (`gestionprof.fpvirtualaragon.es`): altas y bajas de docentes, generación automática de correos `@fpvirtualaragon.es`, asignación de roles (coordinador, tutor) y docencias (ciclo + módulo), y exportación de altas masivas para Google Workspace y Moodle.
 
-> Para levantar el proyecto en local ver [DESARROLLO.md](./DESARROLLO.md).
+## Stack tecnológico
 
-## Descripción
+- **Backend:** Laravel 12 / PHP 8.2 (sesiones en base de datos, colas en `database`).
+- **Frontend:** Blade + Tailwind CSS 3 + Alpine.js; assets compilados con Vite 6.
+- **Base de datos:** MariaDB 10.11 (en local se levanta con Docker).
+- **Autenticación:** Laravel Breeze (Blade), basada en sesiones.
+- **Testing:** Pest 3 (sobre PHPUnit). Estilo de código: Laravel Pint.
 
-Aplicación web desarrollada en Laravel 10 y Vue 3 para la gestión del profesorado en FP virtual en Aragón. Permite gestionar asignaturas, profesores, grupos, aulas y horarios de manera sencilla e intuitiva.
+## Acceso
 
-## Características
+Hay dos pantallas de acceso:
 
-Funcionamineto para poner en marcha la aplicacion:
-Requisitos previos (tener instalado):
+- `/login` — usuarios de centro. El "usuario" es el **código de centro de 8 dígitos** y la contraseña inicial coincide con él (ver `database/seeders/UsuarioSeeder.php`).
+- `/admin/login` — administración (en desarrollo: `Admin` / `12345678`).
 
--   Composer → <https://getcomposer.org/>
--   MySQL (yo uso MySQL Workbench -> 10.4.32-MariaDB)
--   Node.js y npm → <https://nodejs.org/en> (npm se instala automáticamente con Node.js)
--   OPCIÓN 1: Entorno local como Laravel Valet, XAMPP, MAMP o Docker (Personalmente recomiendo XAMPP: <https://www.apachefriends.org/es/download.html> )
--   OPCIÓN 2: Servidor embebido. No es necesario instalar nada.
+Para la puesta en marcha completa del entorno (local y servidor LAN), credenciales de prueba y acceso a la BD con DBeaver, ver **[DESARROLLO.md](./DESARROLLO.md)**. Para el uso de la aplicación, ver **[GUIA_USUARIO.md](./GUIA_USUARIO.md)**.
 
-Una vez instalado todo:
+## Arquitectura de la aplicación
 
--   Crear una base de datos llamada gestor_profesores (No hace falta crear tablas, el proyecto las genera automáticamente.)
+### Autenticación
 
-Configurar el archivo .env:
+Un único guard `web` sobre el modelo `App\Models\Usuario` (tabla `usuario`). El acceso al panel de administración se controla con el flag booleano `is_admin` y el middleware `App\Http\Middleware\EsAdmin`, que protege todas las rutas `/admin/*` (un usuario autenticado no-admin recibe un `403`).
 
--   Abrir el archivo .env
--   Entre las líneas 23 y 28, poner tus propios datos de conexión a la base de datos (nombre, usuario, contraseña, etc.)
+- `is_admin` está fuera de `$fillable` a propósito, para evitar su asignación masiva desde formularios.
+- El login admin (`Admin/Auth/LoginController`) autentica por `nombre` (con fallback por `email`) y exige `is_admin`.
+- El usuario de centro se identifica por su código de centro; el alta de docentes siempre se hace en el contexto de ese centro.
 
-En la terminal, ejecutar los siguientes comandos dentro del proyecto:
+### Módulos funcionales (`routes/web.php`)
 
--   `composer install`
--   `npm install`
--   `npm run build`
--   `php artisan key:generate`
--   `php artisan migrate:fresh --seed`
--   `php artisan serve`
+**Zona de usuario autenticado** (`auth`):
 
-Esto hará lo siguiente:
+| Ruta | Controlador | Función |
+|---|---|---|
+| `alta-docente` | `AltaDocenteController` | Alta de docente; genera el email virtual. AJAX: `comprobar-docente/{dni}` (autocompletado) y `alta-docente/preview-email` (previsualización en vivo) |
+| `docentes/baja`, `docentes/reactivar/{dni}` | `BajaDocenteController` | Baja y reactivación de docentes del centro |
+| `establecer-coordinador` | `EstablecerCoordinadorController` | Asignar/quitar rol de coordinador por centro-ciclo |
+| `establecer-tutor` | `EstablecerTutorController` | Asignar/quitar rol de tutor por centro-ciclo |
+| `establecer-docencia` | `EstablecerDocenciaController` | Asignar docencia (ciclo + módulo). AJAX: `modulos-por-ciclo/{id}` |
+| `profile`, `dashboard` | scaffold Breeze | Perfil de usuario (email, contraseña) y panel principal |
 
--   Instala dependencias
--   Compila los assets del frontend
--   Genera la clave de la app
--   Crea y llena las tablas de la base de datos
--   Levanta el servidor
+**Panel de administración** (`/admin/*`, prefijo `admin.`, middleware `auth` + `es_admin`):
 
-PD: Usuario: Admin | Contraseña: 12345678
+| Ruta | Controlador | Función |
+|---|---|---|
+| `docentes`, `docentes/exportar-csv` | `Admin\DocenteController` | Listado global de docentes (buscador, ordenación, ficha en modal) + exportación CSV |
+| `centros`, `centros/exportar-csv` | `Admin\CentroController` | Listado de centros-ciclos + ficha con tutor, coordinador y módulos + exportación CSV |
+| `alta-plataforma` | `Admin\AltaPlataformaController` | Alta masiva: genera CSV de 29 columnas para Google Workspace y Moodle, contraseña inicial `Cambiam3!_` (cambio obligatorio), unidad organizativa `/Profesorado`; marca docentes como `is_procesado` |
 
-Versiones del proyecto:
-Composer version 2.8.6
-PHP version 8.2.12
+### Organización del código
 
-Gestion Docentes  
-├── @tailwindcss/forms@0.5.10
-├── @tailwindcss/vite@4.1.1
-├── alpinejs@3.14.9
-├── autoprefixer@10.4.21
-├── axios@1.8.4
-├── concurrently@9.1.2
-├── laravel-vite-plugin@1.2.0
-├── postcss@8.5.3
-├── tailwindcss@3.4.17
-└── vite@6.3.2
+- `app/Http/Controllers/` — controladores de usuario (raíz), `Auth/` (scaffold Breeze), `Admin/` (panel) y `Admin/Auth/LoginController.php` (login admin).
+- `app/Models/` — `Usuario`, `Docente`, `Centro`, `Ciclo`, `Modulo`, `Tutor`, `Coordinador`, `Docencia`, `Imparte`, `CentroDocente`, `CentroCiclo`, `CicloModulo`, `DocenteCicloModulo`. Muchas relaciones pivot usan el **DNI como clave** en lugar del id.
+- `app/Services/GeneradorEmailVirtualService.php` — servicio clave: genera el correo `@fpvirtualaragon.es` con el algoritmo `iniciales(nombre) + primer_apellido + inicial(segundo_apellido)`, transliterado a ASCII (sin acentos ni ñ) y con sufijo numérico en caso de colisión. Ej.: `Dario Axel Ureña Garcia` → `daurenag@fpvirtualaragon.es`.
+- `app/Console/Commands/EnviarResumenBajas.php` — comando `docentes:enviar-resumen-bajas` (con `--dry-run`) que envía por email el resumen semanal de bajas registradas en `storage/logs/docentes_baja.log`.
+- `resources/views/` — vistas Blade: raíz, `admin/`, `auth/`, `components/` (Breeze), `layouts/`, `profile/`, `emails/`.
+- `lang/es/` — toda la interfaz está en español; Laravel Lang (`laravel-lang/*`) aporta traducciones de validación.
 
-Dependencias de composer.json
-fakerphp/faker 1.24.1 Faker is a PHP library that generates fake data for you.
-laravel-lang/attributes 2.13.4 List of 126 languages for form field names
-laravel-lang/common 6.7.0 Easily connect the necessary language packs to the application
-laravel/breeze 2.3.6 Minimal Laravel authentication scaffolding with Blade and Tailwind.
-laravel/framework 12.6.0 The Laravel Framework.
-laravel/pail 1.2.2 Easily delve into your Laravel application's log files directly from the command line.
-laravel/pint 1.21.2 An opinionated code formatter for PHP.
-laravel/sail 1.41.0 Docker files for running a basic Laravel application.
-laravel/tinker 2.10.1 Powerful REPL for the Laravel framework.
-mockery/mockery 1.6.12 Mockery is a simple yet flexible PHP mock object framework
-nunomaduro/collision 8.7.0 Cli error handling for console/command-line PHP applications.
-pestphp/pest 3.8.0 The elegant PHP Testing Framework.
-pestphp/pest-plugin-laravel 3.1.0 The Pest Laravel Plugin
+### Base de datos y seeders
 
-## Migrar base de datos`
+- Migraciones en `database/migrations/`. Datos maestros de centros/ciclos/módulos en `CentrosCiclosModulosSeeder` (lee `database/seeders/zz_infoCentros.csv`).
+- `DatabaseSeeder` solo llama a `CentrosCiclosModulosSeeder` y `UsuarioSeeder`; los docentes **no** se siembran por defecto.
+- Credenciales de la BD en desarrollo: base `gestor_profesores`, usuario `gestor` / `gestor` (root: `root12345`).
 
-En a la carpeta `/var/moodle-docker-deploy/gestionprof.fpvirtualaragon.es` ejecutamos:
+## Casos de uso y funcionalidad
 
-```console
-$ docker compose down
-$ docker compose pull
-$ docker compose up -d
-$ docker exec -it fp-app bash
+### Usuario de centro
+
+| Caso de uso | Descripción |
+|---|---|
+| **Alta de docente** | Formulario con DNI, email personal, nombre y apellidos. Al teclear el DNI se autocompleta si el docente ya existe (campos bloqueados, desbloqueables con el candado). El correo `@fpvirtualaragon.es` se genera y previsualiza en vivo. Si el docente estaba de baja, el alta lo reactiva. Tras guardar, redirige a asignar docencia con el docente preseleccionado. |
+| **Baja de docente** | Listado con buscador en vivo; confirmación en modal. La baja queda auditada en `storage/logs/docentes_baja.log`. |
+| **Reactivación de docente** | Botón directo sobre los docentes dados de baja. |
+| **Establecer coordinador** | Un coordinador por centro-ciclo; opción "También es tutor" que crea la tutoría. Listado ordenable con borrado (solo coordinador o coordinador + tutor). |
+| **Establecer tutor** | Un tutor por centro-ciclo; simétrico al coordinador. |
+| **Establecer docencia** | Asigna docente + ciclo + módulo (los módulos se filtran por ciclo). Un módulo puede tener varios docentes (se advierte al duplicar). |
+| **Perfil** | Consulta de ID de centro y cambio de email/contraseña. |
+
+### Administrador
+
+| Caso de uso | Descripción |
+|---|---|
+| **Gestión de Docentes** | Listado global con buscador, ordenación y ficha en modal (datos, módulos que imparte, tutorías, coordinaciones). Exportación CSV. |
+| **Gestión de Centros** | Listado centro-ciclo con ficha en modal (tutor, coordinador, módulos y docentes). Exportación CSV. |
+| **Alta en Plataforma** | Selección de docentes activos con correo virtual (filtros por texto y estado pendiente/procesado), previsualización CSV, descarga de `alta_google_workspace.csv` y `alta_moodle.csv` (cabecera oficial de 29 columnas), y marcado de docentes como procesados. |
+| **Informe semanal de bajas** | Comando `docentes:enviar-resumen-bajas` (programable) que envía por email los eventos de baja/reactivación de la semana y rota el log. |
+
+## Comandos principales
+
+```bash
+composer dev                        # desarrollo: serve + queue:listen + pail + vite
+npm run dev / npm run build         # Vite
+php artisan test                    # suite de tests (Pest)
+./vendor/bin/pint                   # formateo (Laravel Pint)
+php artisan migrate:fresh --seed    # recrear tablas y datos básicos
+docker compose up -d                # MariaDB de desarrollo en 127.0.0.1:3306
 ```
 
-Dentro del contendoer fp-app:
+## Testing
 
-- Si quieres añadir nuevas migraciones:
+Suite en Pest 3 con `RefreshDatabase`; `phpunit.xml` fuerza SQLite en memoria, así que los tests no tocan la BD de desarrollo. Estado verificado (2026-09-07): **81 pasan, 26 fallan**; los fallos son tests scaffold de Breeze que referencian una clase `User` inexistente (la app usa `Usuario`) — fallo conocido y ajeno a la lógica de negocio. Los tests de dominio (`GeneradorEmailVirtualTest`, `AltaPlataformaTest`, `GestionDocentesTest`, `BajasDocentesLogTest`, etc.) están verdes.
 
-```console
-$ php artisan migrate --seed
-```
+## Despliegue
 
-- Si quieres reiniciar todas las migraciones:
+- `Dockerfile`: PHP 8.2-FPM + Composer + Node 18, assets compilados con Vite, arranque vía `start.sh` → `supervisord.conf`.
+- `docker-compose.yml`: solo MariaDB (desarrollo).
+- `docker-compose.server.yml`: servidor de pruebas en LAN (app en `http://IP:8082`); requiere reconstruir la imagen para aplicar cambios de código.
+- Producción: desplegado vía Docker Compose en `gestionprof.fpvirtualaragon.es`.
 
-```console
-$ php artisan migrate:fresh --seed
-```
+## Documentación de referencia
 
-## Login
-
-Hay dos URLs para acceder al login de la aplicación:
-
-- <https://gestionprof.fpvirtualaragon.es/login>: Para los usuarios.
-- <https://gestionprof.fpvirtualaragon.es/admin/login>: Para el admin.
-
-Si quieres saber los usuarios que hay tienes que mirar los seeders.
-
-## Preguntas a resolver
-
-- ¿Realmente es necesario tener tabla de coordinadores y tabla de tutores existiendo el módulo de Coordinación - Tutoría?
-- Del CSV proporcionado hay cursos que son plantillas por lo que hay que revisar las tablas para borrar toda la basura. ¿Lo mejoramos para que no incluya nunca eso o no se va a usar?
-- ¿Las variables de entorno que hay en el docker-compose.yml de donde salen (por ejemplo: `DB_HOST: "${APP_DB_HOST}"`)?
-- Las contraseñas de los usuarios ahora mismo estaría público en el GitHub y DockerHub. ¿Cómo lo apañamos?
-- Hay que probar los comandos moosh. ¿Cuándo será el momento?
-- ¿Cómo me conencto a la base de datos desde DBeaver? Es decir, desde fuera de la máquina local.
-
-
-## Crear jefaturas automaticamente
-
-Crear usuarios de Jefaturas de estudios de todos los centros:
-
-```console
-moosh user-create --email "cpifpmontearagon@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "cpifpmontearagon"
-moosh user-create --email "iessguhuesca@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iessguhuesca"
-moosh user-create --email "iesmvbarbastro@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iesmvbarbastro"
-moosh user-create --email "cpifppiramide@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "cpifppiramide"
-moosh user-create --email "ifpeteruel@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "ifpeteruel"
-moosh user-create --email "iessemteruel@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iessemteruel"
-moosh user-create --email "iesvtteruel@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iesvtteruel"
-moosh user-create --email "cpifpbajoaragon@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "cpifpbajoaragon"
-moosh user-create --email "ieslbuzaragoza@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "ieslbuzaragoza"
-moosh user-create --email "iesmmozaragoza@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iesmmozaragoza"
-moosh user-create --email "iesavempace@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iesavempace"
-moosh user-create --email "iesrgazaragoza@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iesrgazaragoza"
-moosh user-create --email "iespsezaragoza@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iespsezaragoza"
-moosh user-create --email "iesmirzaragoza@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iesmirzaragoza"
-moosh user-create --email "cpilosenlaces@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "cpilosenlaces"
-moosh user-create --email "iestiemposmodernos@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "iestiemposmodernos"
-moosh user-create --email "cpifpcorona@educa.aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "cpifpcorona"
-moosh user-create --email "campusdigital@aragon.es" --password "Cambiame!_" --firstname "Jefatura de" --lastname "campusdigital"
-```
-
-Duda: Cuando se haga la migración se borran todos los usuarios? No
-
-
-
+- **[GUIA_USUARIO.md](./GUIA_USUARIO.md)** — guía completa de uso, pantalla a pantalla.
+- **[DESARROLLO.md](./DESARROLLO.md)** — puesta en marcha (local y servidor LAN), credenciales de prueba, DBeaver, solución de problemas.
+- **[AGENTS.md](./AGENTS.md)** — guía para agentes de IA que trabajen en el repositorio.
+- `CLAUDE.md` — resumen rápido (parcialmente desactualizado).
+- `PULL_REQUEST.md` — diagnóstico del PR #73 de unificación de autenticación.

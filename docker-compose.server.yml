@@ -1,7 +1,7 @@
 services:
     fp-app:
         build: .
-        container_name: gestion-docentes-app
+        container_name: gestion-docentes-app-8082
         restart: unless-stopped
         # Sobrescribe el arranque de la imagen (supervisor/php-fpm) por el servidor HTTP propio
         # de Laravel, que sí sirve la web y los estáticos. Migra antes (idempotente).
@@ -16,7 +16,7 @@ services:
 
     mariadb-db:
         image: mariadb:10.11        # misma versión que docker-compose.yml local
-        container_name: gestion-docentes-db
+        container_name: gestion-docentes-db-8082
         restart: unless-stopped
         volumes:
             - db_data:/var/lib/mysql   # sin puerto expuesto: la BD solo es accesible dentro de la red docker
@@ -33,4 +33,4 @@ services:
 
 volumes:
     db_data:
-        name: gestion_docentes_db
+        name: gestion_docentes8_db_8082
