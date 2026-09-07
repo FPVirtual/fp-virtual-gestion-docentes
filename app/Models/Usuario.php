@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 class Usuario extends Authenticatable
 {
@@ -26,8 +28,13 @@ class Usuario extends Authenticatable
         'nombre',
         'email',
         'password',
-         
     ];
+
+    /**
+     * No se incluye 'is_admin' en $fillable a propósito: es un campo sensible y
+     * debe asignarse de forma explícita ($user->is_admin = true), nunca por
+     * asignación masiva desde una request.
+     */
 
     /**
      * Los atributos que deben permanecer ocultos.
@@ -48,6 +55,7 @@ class Usuario extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'is_admin' => 'boolean',
         ];
     }
 
@@ -58,5 +66,17 @@ class Usuario extends Authenticatable
     {
         return $this->belongsTo(Centro::class, 'id_centro', 'id_centro');
     }
+    protected function nombre(): Attribute
+    {
+        return Attribute::make(
+            set: function (string $value) {
+                // 1. Quitamos los caracteres prohibidos "º" y "."
+                $limpio = str_replace(['º', '.'], '', $value);
 
+                // 2. Ponemos la primera letra de cada palabra en mayúscula
+                return Str::title($limpio);
+            },
+        );
+    }
 }
+

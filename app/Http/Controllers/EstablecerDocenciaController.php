@@ -20,7 +20,7 @@ class EstablecerDocenciaController extends Controller
     {
         $user = Auth::user();
         $centro = $user->centro;
-        
+
         // Obtener docencias con relaciones
         $docencias = DocenteCicloModulo::with(['docente', 'ciclo', 'modulo'])
             ->where('id_centro', $centro->id_centro)
@@ -32,22 +32,24 @@ class EstablecerDocenciaController extends Controller
 
         // Ciclos del centro
         $ciclos = $centro->ciclos;
-        
+
         // Módulos disponibles para los ciclos del centro
         $modulos = Modulo::whereHas('ciclos', function($query) use ($ciclos) {
-            $query->whereIn('ciclo_modulo.id_ciclo', $ciclos->pluck('id_ciclo')); 
+            $query->whereIn('ciclo_modulo.id_ciclo', $ciclos->pluck('id_ciclo'));
         })
         ->orderBy('nombre')
         ->get();
-        
-        
+
+
         // Docentes del centro (se mantiene igual)
         $docentes = Docente::whereIn('dni', function ($query) use ($centro) {
             $query->select('dni')
                 ->from('centro_docente')
                 ->where('id_centro', $centro->id_centro);
-        })->get(['dni', 'nombre', 'apellido']);
-        
+        })
+            ->where('de_baja', false)
+            ->get(['dni', 'nombre', 'apellido']);
+
         return view('establecer_docencia', compact('ciclos', 'modulos', 'docentes', 'docencias', 'sortField'));
     }
 
@@ -63,7 +65,7 @@ class EstablecerDocenciaController extends Controller
     }
 
     public function store(Request $request)
-    {  
+    {
         $request->validate([
             'id_ciclo' => 'required|exists:ciclos,id_ciclo',
             'id_modulo' => [
@@ -87,12 +89,12 @@ class EstablecerDocenciaController extends Controller
         ]);
 
         // Comando moosh para matricular al docente en el curso correspondiente al módulo
-        /*$courseName = "modulo_{$request->id_modulo}"; 
+        /*$courseName = "modulo_{$request->id_modulo}";
         $command = "moosh course-enrol -u " . escapeshellarg($request->dni) . " " . escapeshellarg($courseName);
 
         $this->ejecutarMoosh($command);*/
 
-        // Verificar si ya existe 
+        // Verificar si ya existe
         $existe = Docencia::where('id_centro', $idCentro)
             ->where('id_ciclo', $request->id_ciclo)
             ->where('id_modulo', $request->id_modulo)
@@ -104,7 +106,7 @@ class EstablecerDocenciaController extends Controller
 
         return redirect()->route('establecer_docencia.index')->with('success', 'Docencia asignada correctamente.');
 
-    } 
+    }
 
     public function destroy($id)
     {
@@ -112,7 +114,7 @@ class EstablecerDocenciaController extends Controller
         $docencia->delete();
 
         // Comando moosh para desmatricular al docente en el curso correspondiente al módulo
-        /*$courseName = "modulo_{$docencia->id_modulo}"; 
+        /*$courseName = "modulo_{$docencia->id_modulo}";
         $command = "moosh course-unenrol -u " . escapeshellarg($docencia->dni) . " " . escapeshellarg($courseName);
 
         $this->ejecutarMoosh($command);*/
@@ -127,7 +129,7 @@ class EstablecerDocenciaController extends Controller
             })
             ->select('id_modulo', 'nombre')
             ->get();
-    
+
         return response()->json($modulos);
     }
 

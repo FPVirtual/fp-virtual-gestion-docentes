@@ -32,6 +32,18 @@
                     @csrf
 
                     <div class="form-group">
+                        <label for="dni" class="label">
+                            <i class="fas fa-user-tie mr-1"></i> Seleccionar Coordinador:
+                        </label>
+                        <select name="dni" id="dni" required class="select @error('dni') input-error @enderror">
+                            <option value="">-- Selecciona un docente --</option>
+                            @foreach ($docentes as $docente)
+                                <option value="{{ $docente->dni }}" {{ (session('docente_dni') == $docente->dni || old('dni') == $docente->dni) ? 'selected' : '' }}>{{ $docente->nombre }} {{ $docente->apellido }} - {{ $docente->dni }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="id_ciclo" class="label">
                             <i class="fas fa-graduation-cap mr-1"></i> Seleccionar Ciclo:
                         </label>
@@ -39,18 +51,6 @@
                             <option value="">-- Selecciona un ciclo --</option>
                             @foreach ($ciclos as $ciclo)
                                 <option value="{{ $ciclo->id_ciclo }}">{{ $ciclo->nombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="dni" class="label">
-                            <i class="fas fa-user-tie mr-1"></i> Seleccionar Coordinador:
-                        </label>
-                        <select name="dni" id="dni" required class="select @error('dni') input-error @enderror">
-                            <option value="">-- Selecciona un docente --</option>
-                            @foreach ($docentes as $docente)
-                                <option value="{{ $docente->dni }}">{{ $docente->nombre }} {{ $docente->apellido }} - {{ $docente->dni }}</option>
                             @endforeach
                         </select>
                     </div>

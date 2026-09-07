@@ -11,6 +11,10 @@ class LoginController extends Controller
 {
     public function showLoginForm()
     {
+        // Mismo criterio que exige el panel (guard web + is_admin): evita el bucle de redirección
+        if (Auth::check() && Auth::user()->is_admin) {
+            return redirect()->route('admin.dashboard');
+        }
         return view('admin.login');
     }
 
@@ -21,12 +25,28 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::guard('admin')->attempt([
-            'user' => $credentials['user'],
-            'password' => $credentials['password']
-        ], $request->boolean('remember'))) {
+        // Autenticar contra el guard web (modelo Usuario) por nombre
+        $ok = Auth::guard('web')->attempt([
+            'nombre' => $credentials['user'],
+            'password' => $credentials['password'],
+        ], $request->boolean('remember'));
+
+        // Fallback: intentar por email si el campo es un email válido
+        if (!$ok && filter_var($credentials['user'], FILTER_VALIDATE_EMAIL)) {
+            $ok = Auth::guard('web')->attempt([
+                'email' => $credentials['user'],
+                'password' => $credentials['password'],
+            ], $request->boolean('remember'));
+        }
+
+        if ($ok && Auth::user()->is_admin) {
             $request->session()->regenerate();
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->route('admin.dashboard');
+        }
+
+        // Credenciales correctas pero sin permisos de admin: cerrar sesión y rechazar
+        if ($ok) {
+            Auth::guard('web')->logout();
         }
 
         throw ValidationException::withMessages([
@@ -36,19 +56,11 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        // Elimina el remember_token del usuario actual
-        if (Auth::guard('admin')->check()) {
-            $admin = Auth::guard('admin')->user();
-            $admin->setRememberToken(null);
-            $admin->save();
-        }
-
-        Auth::guard('admin')->logout();
+        Auth::guard('web')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('admin.login');
-}
-
+    }
 }
