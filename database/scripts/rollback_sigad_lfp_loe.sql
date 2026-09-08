@@ -1,0 +1,326 @@
+-- =====================================================================
+-- Script: ROLLBACK - Renombrado de id_modulo según "Relación IDs sigad
+-- cursos LFP y LOE" (revierte código SIGAD LFP nuevo -> código SIGAD LOE
+-- antiguo)
+-- Motor:  MySQL / MariaDB (InnoDB)
+-- Tablas afectadas: modulos (PK), ciclo_modulo, imparte, docente_modulo_ciclo
+--
+-- Úsalo SOLO si ya ejecutaste rename_sigad_lfp_loe.sql y necesitas
+-- deshacer el cambio (alternativa a restaurar el backup).
+--
+-- Uso:
+--   mysql -u <usuario> -p <base_de_datos> < rollback_sigad_lfp_loe.sql
+-- =====================================================================
+
+
+DROP PROCEDURE IF EXISTS sp_renombrar_id_modulo_sigad;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_renombrar_id_modulo_sigad()
+proc: BEGIN
+    DECLARE v_faltantes  INT DEFAULT 0;
+    DECLARE v_colisiones INT DEFAULT 0;
+    DECLARE v_huerfanos  INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_faltantes
+    FROM tmp_id_modulo_map_sigad m
+    LEFT JOIN modulos mo ON mo.id_modulo = m.id_modulo_antiguo
+    WHERE mo.id_modulo IS NULL;
+
+    IF v_faltantes > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Abortado: hay id_modulo de origen que no existen en modulos';
+    END IF;
+
+    SELECT COUNT(*) INTO v_colisiones
+    FROM tmp_id_modulo_map_sigad m
+    JOIN modulos mo ON mo.id_modulo = m.id_modulo_nuevo;
+
+    IF v_colisiones > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Abortado: hay id_modulo de destino que ya existen en modulos';
+    END IF;
+
+    SET FOREIGN_KEY_CHECKS = 0;
+
+    UPDATE ciclo_modulo cm
+    JOIN tmp_id_modulo_map_sigad m ON m.id_modulo_antiguo = cm.id_modulo
+    SET cm.id_modulo = m.id_modulo_nuevo;
+
+    UPDATE imparte i
+    JOIN tmp_id_modulo_map_sigad m ON m.id_modulo_antiguo = i.id_modulo
+    SET i.id_modulo = m.id_modulo_nuevo;
+
+    UPDATE docente_modulo_ciclo d
+    JOIN tmp_id_modulo_map_sigad m ON m.id_modulo_antiguo = d.id_modulo
+    SET d.id_modulo = m.id_modulo_nuevo;
+
+    UPDATE modulos mo
+    JOIN tmp_id_modulo_map_sigad m ON m.id_modulo_antiguo = mo.id_modulo
+    SET mo.id_modulo = m.id_modulo_nuevo;
+
+    SET FOREIGN_KEY_CHECKS = 1;
+
+    SELECT COUNT(*) INTO v_huerfanos FROM (
+        SELECT id_modulo FROM ciclo_modulo
+        WHERE id_modulo NOT IN (SELECT id_modulo FROM modulos)
+        UNION ALL
+        SELECT id_modulo FROM imparte
+        WHERE id_modulo NOT IN (SELECT id_modulo FROM modulos)
+        UNION ALL
+        SELECT id_modulo FROM docente_modulo_ciclo
+        WHERE id_modulo NOT IN (SELECT id_modulo FROM modulos)
+    ) huerfanos;
+
+    IF v_huerfanos > 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Abortado: han quedado filas huerfanas tras la actualizacion';
+    END IF;
+
+    SELECT 'OK: 217 codigos id_modulo revertidos a los codigos SIGAD LOE originales' AS resultado;
+END$$
+
+DELIMITER ;
+
+
+DROP TEMPORARY TABLE IF EXISTS tmp_id_modulo_map_sigad;
+
+CREATE TEMPORARY TABLE tmp_id_modulo_map_sigad (
+    id_modulo_antiguo VARCHAR(50) NOT NULL PRIMARY KEY,
+    id_modulo_nuevo   VARCHAR(50) NOT NULL,
+    UNIQUE KEY uq_nuevo (id_modulo_nuevo)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+-- Mapeo INVERTIDO: origen = código SIGAD LFP actual, destino = código SIGAD LOE original
+INSERT INTO tmp_id_modulo_map_sigad (id_modulo_antiguo, id_modulo_nuevo) VALUES
+('14634', '5364'),
+('14638', '5114'),
+('14644', '5365'),
+('14646', '5368'),
+('14649', '5367'),
+('14653', '5119'),
+('14659', '5117'),
+('14661', '5120'),
+('14667', '5118'),
+('14672', '5297'),
+('14677', '5194'),
+('14683', '5295'),
+('14685', '5296'),
+('14687', '5294'),
+('14690', '5101'),
+('14692', '5099'),
+('14695', '5100'),
+('14697', '5148'),
+('14706', '5149'),
+('14711', '7855'),
+('14715', '7851'),
+('14721', '7853'),
+('14723', '7854'),
+('14725', '7852'),
+('14728', '7871'),
+('14734', '7870'),
+('14737', '7869'),
+('14741', '7863'),
+('16691', '5349'),
+('16699', '5347'),
+('16701', '5351'),
+('16703', '5348'),
+('16708', '4995'),
+('16717', '4993'),
+('16720', '4994'),
+('16722', '4991'),
+('15333', '13948'),
+('15337', '13947'),
+('15340', '13945'),
+('15346', '13943'),
+('15348', '13942'),
+('15352', '13954'),
+('15354', '13952'),
+('15362', '13951'),
+('15367', '13950'),
+('15371', '13949'),
+('15375', '5409'),
+('15377', '5407'),
+('15384', '5408'),
+('15386', '5406'),
+('15388', '5163'),
+('15390', '5161'),
+('15394', '5159'),
+('15396', '5162'),
+('15401', '5160'),
+('15405', '5158'),
+('15411', '7909'),
+('15416', '7926'),
+('15420', '7908'),
+('15422', '7907'),
+('15424', '7917'),
+('15426', '7918'),
+('15430', '7910'),
+('15432', '7925'),
+('15437', '7919'),
+('15443', '7920'),
+('15447', '5426'),
+('15449', '5422'),
+('15456', '5424'),
+('15459', '5421'),
+('15461', '5198'),
+('15463', '5195'),
+('15467', '5200'),
+('15472', '5203'),
+('15475', '5202'),
+('16803', '5180'),
+('16807', '5182'),
+('16813', '5178'),
+('16815', '5181'),
+('16817', '5179'),
+('16820', '5083'),
+('16822', '5084'),
+('16824', '5085'),
+('16827', '5086'),
+('17355', '7929'),
+('17357', '7930'),
+('17359', '7933'),
+('17361', '7935'),
+('17363', '7950'),
+('17365', '7945'),
+('17367', '7948'),
+('17369', '7946'),
+('17879', '5256'),
+('17883', '5259'),
+('17885', '5260'),
+('17891', '5255'),
+('17894', '5031'),
+('17896', '5036'),
+('17898', '5035'),
+('17900', '5032'),
+('15562', '5335'),
+('15566', '12359'),
+('15569', '5337'),
+('15573', '5338'),
+('15579', '4981'),
+('15582', '4980'),
+('15584', '4982'),
+('15586', '12360'),
+('15590', '4984'),
+('18381', '12339'),
+('18383', '12338'),
+('18389', '12342'),
+('18391', '12343'),
+('18393', '12344'),
+('18395', '12345'),
+('18397', '12346'),
+('18399', '12347'),
+('18401', '12350'),
+('18411', '12353'),
+('16460', '5456'),
+('16464', '5463'),
+('16466', '5447'),
+('16472', '5223'),
+('16474', '5457'),
+('16476', '5236'),
+('16480', '5224'),
+('16486', '5228'),
+('16490', '5237'),
+('16730', '5274'),
+('16732', '5275'),
+('16735', '5272'),
+('16741', '5276'),
+('16743', '5273'),
+('16745', '5054'),
+('16747', '5051'),
+('16750', '5053'),
+('16758', '5055'),
+('16760', '5052'),
+('16764', '5290'),
+('16769', '5293'),
+('16775', '5288'),
+('16777', '5291'),
+('16779', '5289'),
+('16782', '5066'),
+('16784', '5068'),
+('16791', '5070'),
+('16794', '5069'),
+('16798', '5071'),
+('15756', '13932'),
+('15760', '13929'),
+('15762', '13926'),
+('15768', '13936'),
+('15770', '13930'),
+('15772', '13928'),
+('15780', '13937'),
+('15782', '13935'),
+('15784', '13940'),
+('15788', '13933'),
+('17981', '5324'),
+('17985', '5327'),
+('17987', '5325'),
+('17993', '5326'),
+('17995', '5329'),
+('17998', '5323'),
+('18002', '4969'),
+('18004', '4971'),
+('18011', '4972'),
+('18019', '5319'),
+('18021', '5316'),
+('18023', '5313'),
+('18027', '5312'),
+('18029', '5315'),
+('18036', '5310'),
+('18040', '4955'),
+('18044', '4952'),
+('18048', '4958'),
+('18054', '4959'),
+('18494', '5382'),
+('18496', '5379'),
+('18498', '5378'),
+('18500', '5125'),
+('18508', '5375'),
+('18512', '5128'),
+('18514', '5381'),
+('18516', '5131'),
+('18522', '5124'),
+('18528', '5135'),
+('18586', '5433'),
+('18588', '5436'),
+('18591', '5432'),
+('18595', '5213'),
+('18601', '5441'),
+('18603', '5212'),
+('18606', '5434'),
+('18608', '5210'),
+('18611', '5214'),
+('18621', '7874'),
+('18625', '7899'),
+('18629', '7875'),
+('18633', '7897'),
+('18635', '7882'),
+('18637', '7879'),
+('18639', '7878'),
+('18641', '7892'),
+('18645', '7877'),
+('18651', '7896'),
+('19108', '14342'),
+('19110', '14340'),
+('19112', '14343'),
+('19114', '14339'),
+('19116', '14344'),
+('19118', '14341'),
+('19120', '14347'),
+('19122', '14345'),
+('19124', '14349'),
+('19126', '14348'),
+('19128', '14346');
+
+
+START TRANSACTION;
+
+CALL sp_renombrar_id_modulo_sigad();
+
+COMMIT;
+
+
+DROP TEMPORARY TABLE IF EXISTS tmp_id_modulo_map_sigad;
+DROP PROCEDURE IF EXISTS sp_renombrar_id_modulo_sigad;

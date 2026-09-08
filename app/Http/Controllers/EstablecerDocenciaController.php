@@ -94,13 +94,14 @@ class EstablecerDocenciaController extends Controller
 
         $this->ejecutarMoosh($command);*/
 
-        // Verificar si ya existe
-        $existe = Docencia::where('id_centro', $idCentro)
+        // Verificar cuántos docentes hay ya asignados a este módulo/ciclo/centro
+        // (incluye la docencia que se acaba de crear). Solo avisamos si hay más de uno.
+        $totalDocentes = Docencia::where('id_centro', $idCentro)
             ->where('id_ciclo', $request->id_ciclo)
             ->where('id_modulo', $request->id_modulo)
-            ->exists();
+            ->count();
 
-        if ($existe) {
+        if ($totalDocentes > 1) {
             return redirect()->route('establecer_docencia.index')->with('success', 'Docencia asignada correctamente. . ¡¡¡ATENCIÓN!!! Este módulo ya tenía un docente asignado por lo que ahora este módulo tiene DOS O MÁS docentes asignados.');
         }
 
