@@ -3,7 +3,9 @@
 use App\Models\Usuario;
 
 test('profile page is displayed', function () {
-    $user = User::factory()->create();
+    $this->withoutVite();
+
+    $user = Usuario::factory()->create();
 
     $response = $this
         ->actingAs($user)
@@ -12,14 +14,13 @@ test('profile page is displayed', function () {
     $response->assertOk();
 });
 
-test('profile information can be updated', function () {
-    $user = User::factory()->create();
+test('profile email can be updated', function () {
+    $user = Usuario::factory()->create();
 
     $response = $this
         ->actingAs($user)
         ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'email' => 'nuevo@example.com',
         ]);
 
     $response
@@ -28,30 +29,25 @@ test('profile information can be updated', function () {
 
     $user->refresh();
 
-    $this->assertSame('Test User', $user->name);
-    $this->assertSame('test@example.com', $user->email);
-    $this->assertNull($user->email_verified_at);
+    $this->assertSame('nuevo@example.com', $user->email);
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
-    $user = User::factory()->create();
+test('profile email must be unique', function () {
+    Usuario::factory()->create(['email' => 'ocupado@example.com']);
+    $user = Usuario::factory()->create();
 
     $response = $this
         ->actingAs($user)
+        ->from('/profile')
         ->patch('/profile', [
-            'name' => 'Test User',
-            'email' => $user->email,
+            'email' => 'ocupado@example.com',
         ]);
 
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/profile');
-
-    $this->assertNotNull($user->refresh()->email_verified_at);
+    $response->assertSessionHasErrors('email');
 });
 
 test('user can delete their account', function () {
-    $user = User::factory()->create();
+    $user = Usuario::factory()->create();
 
     $response = $this
         ->actingAs($user)
@@ -68,7 +64,7 @@ test('user can delete their account', function () {
 });
 
 test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
+    $user = Usuario::factory()->create();
 
     $response = $this
         ->actingAs($user)

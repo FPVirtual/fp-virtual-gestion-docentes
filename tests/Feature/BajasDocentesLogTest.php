@@ -28,14 +28,11 @@ use App\Models\Usuario;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 
-// ─── Ruta física del log de bajas ────────────────────────────────────────────
-it('escribe en el log', function () {
-    $path = storage_path('logs/docentes_baja.log');
-
 // ─── Helper: línea de log con timestamp RECIENTE (formato Monolog) ───────────
 function logLineReciente(string $nivel = 'INFO', string $mensaje = 'Baja de docente procesada'): string
 {
     $ts = Carbon::now()->format('Y-m-d H:i:s');
+
     return "[{$ts}] bajas_docentes.{$nivel}: {$mensaje} {\"dni_docente\":\"12345678A\",\"usuario_id\":1}";
 }
 
@@ -43,6 +40,7 @@ function logLineReciente(string $nivel = 'INFO', string $mensaje = 'Baja de doce
 function logLineAntigua(string $nivel = 'INFO', string $mensaje = 'Baja antigua'): string
 {
     $ts = Carbon::now()->subDays(10)->format('Y-m-d H:i:s');
+
     return "[{$ts}] bajas_docentes.{$nivel}: {$mensaje} {\"dni_docente\":\"99999999Z\",\"usuario_id\":2}";
 }
 
@@ -62,8 +60,6 @@ afterEach(function () {
         unlink($logPath);
     }
 });
-});
-
 
 // ════════════════════════════════════════════════════════════════════════════
 // BLOQUE A — Escritura de logs en BajaDocenteController
@@ -77,14 +73,14 @@ describe('A) Auditoría en BajaDocenteController', function () {
         $logPath = storage_path('logs/docentes_baja.log');
 
         // Arrange
-        $centro  = Centro::forceCreate(['id_centro' => 'LA01', 'nombre' => 'Centro Log Test']);
+        $centro = Centro::forceCreate(['id_centro' => 'LA01', 'nombre' => 'Centro Log Test']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LA01']);
         $docente = Docente::forceCreate([
-            'nombre'        => 'Ana',
-            'apellido'      => 'García',
-            'dni'           => 'LA000001A',
+            'nombre' => 'Ana',
+            'apellido' => 'García',
+            'dni' => 'LA000001A',
             'email_virtual' => 'ana@test.com',
-            'de_baja'       => false,
+            'de_baja' => false,
         ]);
 
         // Act
@@ -105,14 +101,14 @@ describe('A) Auditoría en BajaDocenteController', function () {
         $logPath = storage_path('logs/docentes_baja.log');
 
         // Arrange
-        $centro  = Centro::forceCreate(['id_centro' => 'LA02', 'nombre' => 'Centro Log Test']);
+        $centro = Centro::forceCreate(['id_centro' => 'LA02', 'nombre' => 'Centro Log Test']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LA02']);
         $docente = Docente::forceCreate([
-            'nombre'        => 'Carlos',
-            'apellido'      => 'López',
-            'dni'           => 'LA000002B',
+            'nombre' => 'Carlos',
+            'apellido' => 'López',
+            'dni' => 'LA000002B',
             'email_virtual' => 'carlos@test.com',
-            'de_baja'       => false,
+            'de_baja' => false,
         ]);
 
         // Act
@@ -128,14 +124,14 @@ describe('A) Auditoría en BajaDocenteController', function () {
         $logPath = storage_path('logs/docentes_baja.log');
 
         // Arrange
-        $centro  = Centro::forceCreate(['id_centro' => 'LA03', 'nombre' => 'Centro Log Test']);
+        $centro = Centro::forceCreate(['id_centro' => 'LA03', 'nombre' => 'Centro Log Test']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LA03']);
         $docente = Docente::forceCreate([
-            'nombre'        => 'Pedro',
-            'apellido'      => 'Martínez',
-            'dni'           => 'LA000003C',
+            'nombre' => 'Pedro',
+            'apellido' => 'Martínez',
+            'dni' => 'LA000003C',
             'email_virtual' => 'pedro@test.com',
-            'de_baja'       => true,
+            'de_baja' => true,
         ]);
 
         // Act
@@ -156,7 +152,7 @@ describe('A) Auditoría en BajaDocenteController', function () {
         $logPath = storage_path('logs/docentes_baja.log');
 
         // Arrange
-        $centro  = Centro::forceCreate(['id_centro' => 'LA04', 'nombre' => 'Centro Log Test']);
+        $centro = Centro::forceCreate(['id_centro' => 'LA04', 'nombre' => 'Centro Log Test']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LA04']);
 
         // DNI que no existe → firstOrFail() lanzará ModelNotFoundException
@@ -180,7 +176,7 @@ describe('A) Auditoría en BajaDocenteController', function () {
         $logPath = storage_path('logs/docentes_baja.log');
 
         // Arrange
-        $centro  = Centro::forceCreate(['id_centro' => 'LA05', 'nombre' => 'Centro Log Test']);
+        $centro = Centro::forceCreate(['id_centro' => 'LA05', 'nombre' => 'Centro Log Test']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LA05']);
         $dniInexistente = 'YY0088088X';
 
@@ -201,14 +197,14 @@ describe('A) Auditoría en BajaDocenteController', function () {
         $contenidoAntes = file_exists($logGeneral) ? file_get_contents($logGeneral) : '';
 
         // Arrange
-        $centro  = Centro::forceCreate(['id_centro' => 'LA06', 'nombre' => 'Centro Log Test']);
+        $centro = Centro::forceCreate(['id_centro' => 'LA06', 'nombre' => 'Centro Log Test']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LA06']);
         $docente = Docente::forceCreate([
-            'nombre'        => 'Rafa',
-            'apellido'      => 'Sanz',
-            'dni'           => 'LA000006D',
+            'nombre' => 'Rafa',
+            'apellido' => 'Sanz',
+            'dni' => 'LA000006D',
             'email_virtual' => 'rafa@test.com',
-            'de_baja'       => false,
+            'de_baja' => false,
         ]);
 
         // Act
@@ -216,7 +212,7 @@ describe('A) Auditoría en BajaDocenteController', function () {
 
         // Assert — el laravel.log NO debe tener nuevas entradas de baja de docente
         $contenidoDespues = file_exists($logGeneral) ? file_get_contents($logGeneral) : '';
-        $lineasNuevas     = str_replace($contenidoAntes, '', $contenidoDespues);
+        $lineasNuevas = str_replace($contenidoAntes, '', $contenidoDespues);
         expect($lineasNuevas)->not->toContain('Baja de docente procesada');
     });
 
@@ -225,10 +221,10 @@ describe('A) Auditoría en BajaDocenteController', function () {
         $logPath = storage_path('logs/docentes_baja.log');
 
         // Arrange
-        $centro  = Centro::forceCreate(['id_centro' => 'LA07', 'nombre' => 'Centro Log Test']);
+        $centro = Centro::forceCreate(['id_centro' => 'LA07', 'nombre' => 'Centro Log Test']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LA07']);
-        $doc1    = Docente::forceCreate(['nombre' => 'D1', 'apellido' => 'A', 'dni' => 'LA000007E', 'email_virtual' => 'd1@test.com', 'de_baja' => false]);
-        $doc2    = Docente::forceCreate(['nombre' => 'D2', 'apellido' => 'B', 'dni' => 'LA000007F', 'email_virtual' => 'd2@test.com', 'de_baja' => false]);
+        $doc1 = Docente::forceCreate(['nombre' => 'D1', 'apellido' => 'A', 'dni' => 'LA000007E', 'email_virtual' => 'd1@test.com', 'de_baja' => false]);
+        $doc2 = Docente::forceCreate(['nombre' => 'D2', 'apellido' => 'B', 'dni' => 'LA000007F', 'email_virtual' => 'd2@test.com', 'de_baja' => false]);
 
         // Act
         $this->actingAs($usuario)->post("/docentes/baja/{$doc1->dni}");
@@ -246,7 +242,6 @@ describe('A) Auditoría en BajaDocenteController', function () {
     });
 });
 
-
 // ════════════════════════════════════════════════════════════════════════════
 // BLOQUE B — Comando Artisan: docentes:enviar-resumen-bajas
 // ════════════════════════════════════════════════════════════════════════════
@@ -257,7 +252,7 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('el comando envía el mailable ResumenBajasDocentes cuando hay registros recientes', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente() . PHP_EOL);
+        file_put_contents($logPath, logLineReciente().PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
 
@@ -268,8 +263,8 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('el mailable recibe los registros extraídos del log de la última semana', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        $linea   = logLineReciente('INFO', 'Baja de docente procesada');
-        file_put_contents($logPath, $linea . PHP_EOL);
+        $linea = logLineReciente('INFO', 'Baja de docente procesada');
+        file_put_contents($logPath, $linea.PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
 
@@ -282,7 +277,7 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('el mailable recibe una instancia Carbon como fecha de inicio del período', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente() . PHP_EOL);
+        file_put_contents($logPath, logLineReciente().PHP_EOL);
         $antes = Carbon::now()->subWeek()->startOfMinute();
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
@@ -297,7 +292,7 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('después del envío exitoso docentes_baja.log queda vacío (rotación)', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente() . PHP_EOL);
+        file_put_contents($logPath, logLineReciente().PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
 
@@ -309,7 +304,7 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('el comando no envía email si solo hay registros de hace más de 7 días', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineAntigua() . PHP_EOL);
+        file_put_contents($logPath, logLineAntigua().PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')
             ->expectsOutput('No se encontraron bajas en los últimos 7 días. No se enviará email.')
@@ -321,10 +316,10 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     // ── B6: Líneas antiguas se conservan en el log tras la rotación ──────────
     test('las líneas antiguas no se eliminan en la rotación, solo las enviadas', function () {
         Mail::fake();
-        $logPath       = storage_path('logs/docentes_baja.log');
+        $logPath = storage_path('logs/docentes_baja.log');
         $lineaReciente = logLineReciente('INFO', 'Baja reciente');
-        $lineaAntigua  = logLineAntigua('INFO',  'Baja antigua');
-        file_put_contents($logPath, $lineaAntigua . PHP_EOL . $lineaReciente . PHP_EOL);
+        $lineaAntigua = logLineAntigua('INFO', 'Baja antigua');
+        file_put_contents($logPath, $lineaAntigua.PHP_EOL.$lineaReciente.PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
 
@@ -337,7 +332,7 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('con --dry-run el comando no envía ningún email', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente() . PHP_EOL);
+        file_put_contents($logPath, logLineReciente().PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas --dry-run')
             ->expectsOutputToContain('Dry-run completado')
@@ -349,9 +344,9 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     // ── B8: --dry-run → no modifica el fichero de log ────────────────────────
     test('con --dry-run el fichero de log no es modificado', function () {
         Mail::fake();
-        $logPath          = storage_path('logs/docentes_baja.log');
-        $linea            = logLineReciente();
-        file_put_contents($logPath, $linea . PHP_EOL);
+        $logPath = storage_path('logs/docentes_baja.log');
+        $linea = logLineReciente();
+        file_put_contents($logPath, $linea.PHP_EOL);
         $contenidoOriginal = file_get_contents($logPath);
 
         $this->artisan('docentes:enviar-resumen-bajas --dry-run')->assertSuccessful();
@@ -363,7 +358,7 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('con --dry-run el comando imprime las líneas del log en la consola', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente('INFO', 'Baja de docente procesada') . PHP_EOL);
+        file_put_contents($logPath, logLineReciente('INFO', 'Baja de docente procesada').PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas --dry-run')
             ->expectsOutputToContain('MODO DRY-RUN')
@@ -375,9 +370,9 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('el comando envía exactamente un email aunque haya muchos registros recientes', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        $lineas  = '';
+        $lineas = '';
         for ($i = 0; $i < 15; $i++) {
-            $lineas .= logLineReciente('INFO', "Baja número {$i}") . PHP_EOL;
+            $lineas .= logLineReciente('INFO', "Baja número {$i}").PHP_EOL;
         }
         file_put_contents($logPath, $lineas);
 
@@ -390,11 +385,11 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     test('cuando hay varios registros recientes todos se incluyen en el mailable', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        $lineas  = implode(PHP_EOL, [
-            logLineReciente('INFO',     'Baja de docente procesada'),
-            logLineReciente('NOTICE',   'Docente reactivado'),
+        $lineas = implode(PHP_EOL, [
+            logLineReciente('INFO', 'Baja de docente procesada'),
+            logLineReciente('NOTICE', 'Docente reactivado'),
             logLineReciente('CRITICAL', 'Error al dar de baja al docente'),
-        ]) . PHP_EOL;
+        ]).PHP_EOL;
         file_put_contents($logPath, $lineas);
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
@@ -407,10 +402,10 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
     // ── B12: Mezcla recientes + antiguas → Mailable solo lleva los recientes ──
     test('solo se incluyen en el mailable los registros de los últimos 7 días', function () {
         Mail::fake();
-        $logPath       = storage_path('logs/docentes_baja.log');
+        $logPath = storage_path('logs/docentes_baja.log');
         $lineaReciente = logLineReciente('INFO', 'Baja reciente');
-        $lineaAntigua  = logLineAntigua('INFO',  'Baja antigua');
-        file_put_contents($logPath, $lineaAntigua . PHP_EOL . $lineaReciente . PHP_EOL);
+        $lineaAntigua = logLineAntigua('INFO', 'Baja antigua');
+        file_put_contents($logPath, $lineaAntigua.PHP_EOL.$lineaReciente.PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
 
@@ -421,7 +416,6 @@ describe('B) Comando docentes:enviar-resumen-bajas', function () {
         });
     });
 });
-
 
 // ════════════════════════════════════════════════════════════════════════════
 // BLOQUE C — Casos límite y protecciones del comando
@@ -461,7 +455,7 @@ describe('C) Casos límite del comando', function () {
     test('el comando retorna exit code 0 cuando completa el envío con éxito', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente() . PHP_EOL);
+        file_put_contents($logPath, logLineReciente().PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
     });
@@ -470,7 +464,7 @@ describe('C) Casos límite del comando', function () {
     test('el comando imprime en consola el número de registros encontrados', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente() . PHP_EOL . logLineReciente() . PHP_EOL);
+        file_put_contents($logPath, logLineReciente().PHP_EOL.logLineReciente().PHP_EOL);
 
         $this->artisan('docentes:enviar-resumen-bajas')
             ->expectsOutputToContain('registros')
@@ -481,21 +475,21 @@ describe('C) Casos límite del comando', function () {
     test('el fichero de log puede volver a recibir entradas después de la rotación', function () {
         Mail::fake();
         $logPath = storage_path('logs/docentes_baja.log');
-        file_put_contents($logPath, logLineReciente() . PHP_EOL);
+        file_put_contents($logPath, logLineReciente().PHP_EOL);
 
         // Primera ejecución → rota el log (queda vacío)
         $this->artisan('docentes:enviar-resumen-bajas')->assertSuccessful();
         expect(trim(file_get_contents($logPath)))->toContain('Resumen semanal enviado');
 
         // Simula una nueva baja tras la rotación
-        $centro  = Centro::forceCreate(['id_centro' => 'LC05', 'nombre' => 'Centro Rotación']);
+        $centro = Centro::forceCreate(['id_centro' => 'LC05', 'nombre' => 'Centro Rotación']);
         $usuario = Usuario::factory()->create(['id_centro' => 'LC05']);
         $docente = Docente::forceCreate([
-            'nombre'        => 'Nueva',
-            'apellido'      => 'Baja',
-            'dni'           => 'LC000005G',
+            'nombre' => 'Nueva',
+            'apellido' => 'Baja',
+            'dni' => 'LC000005G',
             'email_virtual' => 'nueva@test.com',
-            'de_baja'       => false,
+            'de_baja' => false,
         ]);
         $this->actingAs($usuario)->post("/docentes/baja/{$docente->dni}");
 
