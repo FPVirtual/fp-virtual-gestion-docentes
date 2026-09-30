@@ -1,8 +1,9 @@
 <?php
 
-use App\Models\Usuario;
 use App\Models\Centro;
+use App\Models\CentroDocente;
 use App\Models\Docente;
+use App\Models\Usuario;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -22,7 +23,7 @@ test('el nombre y apellido se guardan con la primera letra en mayúscula', funct
     $usuario = Usuario::factory()->create(['id_centro' => 'C200']);
     $datos = [
         'nombre' => 'juan ignacio', 'apellido' => 'pérez de la o',
-        'dni' => '12345678Z', 'email' => 'j@t.com', 'email_virtual' => 'j@v.com', 'id_centro' => 'C200'
+        'dni' => '12345678Z', 'email' => 'j@t.com', 'email_virtual' => 'j@v.com', 'id_centro' => 'C200',
     ];
     $this->actingAs($usuario)->post('/alta-docente', $datos);
     $this->assertDatabaseHas('docentes', ['dni' => '12345678Z', 'nombre' => 'Juan Ignacio', 'apellido' => 'Pérez De La O']);
@@ -35,20 +36,21 @@ test('el DNI se guarda siempre en mayúsculas aunque se introduzca en minúscula
     $datos = [
         'nombre' => 'Test', 'apellido' => 'Mayus',
         'dni' => '87654321s',
-        'email' => 'm@t.com', 'email_virtual' => 'm@v.com', 'id_centro' => 'C300'
+        'email' => 'm@t.com', 'email_virtual' => 'm@v.com', 'id_centro' => 'C300',
     ];
     $this->actingAs($usuario)->post('/alta-docente', $datos);
     $this->assertDatabaseHas('docentes', ['dni' => '87654321S']);
 });
 
-/** 4. VALIDACIÓN DNI DUPLICADO */
-test('no se permite registrar dos docentes con el mismo DNI', function () {
+/** 4. VALIDACIÓN DNI DUPLICADO EN EL MISMO CENTRO */
+test('no se permite registrar dos docentes con el mismo DNI en el mismo centro', function () {
     $centro = Centro::forceCreate(['id_centro' => 'C400', 'nombre' => 'Centro Test']);
     $usuario = Usuario::factory()->create(['id_centro' => 'C400']);
     Docente::forceCreate(['nombre' => 'O', 'apellido' => 'E', 'dni' => '99999999R', 'email_virtual' => 'o@v.com']);
+    CentroDocente::forceCreate(['dni' => '99999999R', 'id_centro' => 'C400', 'email' => 'o@t.com']);
     $datos = [
         'nombre' => 'I', 'apellido' => 'D', 'dni' => '99999999R',
-        'email' => 'i@t.com', 'email_virtual' => 'i@v.com', 'id_centro' => 'C400'
+        'email' => 'i@t.com', 'email_virtual' => 'i@v.com', 'id_centro' => 'C400',
     ];
     $response = $this->actingAs($usuario)->post('/alta-docente', $datos);
     $response->assertSessionHasErrors(['dni']);

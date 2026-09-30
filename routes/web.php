@@ -1,23 +1,23 @@
 <?php
 
+use App\Http\Controllers\Admin\AltaPlataformaController;
+use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
+use App\Http\Controllers\Admin\CentroController;
+use App\Http\Controllers\Admin\DocenteController;
+use App\Http\Controllers\AltaDocenteController;
+use App\Http\Controllers\BajaDocenteController;
+use App\Http\Controllers\EstablecerCoordinadorController;
+use App\Http\Controllers\EstablecerDocenciaController;
+use App\Http\Controllers\EstablecerTutorController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AltaDocenteController;
-use App\Http\Controllers\EstablecerCoordinadorController;
-use App\Http\Controllers\EstablecerTutorController;
-use App\Http\Controllers\EstablecerDocenciaController;
-use App\Http\Controllers\BajaDocenteController;
-use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
-use App\Http\Controllers\Admin\DocenteController;
-use App\Http\Controllers\Admin\CentroController;
-use App\Http\Controllers\Admin\AltaPlataformaController;
 
 Route::redirect('/', '/login');
 
 // Dashboard
 Route::get('/dashboard', function () {
     return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth'])->name('dashboard');
 
 // Perfiles
 Route::middleware('auth')->group(function () {
@@ -40,7 +40,7 @@ Route::middleware(['auth'])->group(function () {
     // Cambiamos a POST para que sea más fácil de usar en botones simples
     Route::post('/docentes/baja/{dni}', [BajaDocenteController::class, 'destroy'])->name('docente.baja');
     Route::post('/docentes/reactivar/{dni}', [BajaDocenteController::class, 'reactivar'])->name('docente.reactivar');
-    
+
     Route::get('/docentes/baja', [BajaDocenteController::class, 'index'])->name('docentes.index');
     Route::delete('/docentes/baja/{dni}', [BajaDocenteController::class, 'destroy'])->name('docentes.destroy');
 });
@@ -56,7 +56,6 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/establecer-coordinador/{id}', [EstablecerCoordinadorController::class, 'destroy'])
         ->name('establecer_coordinador.destroy');
 });
-
 
 // Tutor
 Route::middleware(['auth'])->group(function () {
@@ -85,7 +84,6 @@ Route::middleware(['auth'])->group(function () {
 
 });
 
-
 // Admin
 Route::middleware('web')->prefix('admin')->name('admin.')->group(function () {
     // Ruta /admin que redirige al dashboard si está autenticado como admin, o al login
@@ -93,6 +91,7 @@ Route::middleware('web')->prefix('admin')->name('admin.')->group(function () {
         if (auth()->check() && auth()->user()->is_admin) {
             return redirect()->route('admin.dashboard');
         }
+
         return redirect()->route('admin.login');
     })->name('home');
 
@@ -125,6 +124,4 @@ Route::middleware('web')->prefix('admin')->name('admin.')->group(function () {
     });
 });
 
-
 require __DIR__.'/auth.php';
-

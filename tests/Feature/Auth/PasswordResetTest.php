@@ -5,6 +5,8 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
 
 test('reset password link screen can be rendered', function () {
+    $this->withoutVite();
+
     $response = $this->get('/forgot-password');
 
     $response->assertStatus(200);
@@ -13,7 +15,7 @@ test('reset password link screen can be rendered', function () {
 test('reset password link can be requested', function () {
     Notification::fake();
 
-    $user = User::factory()->create();
+    $user = Usuario::factory()->create();
 
     $this->post('/forgot-password', ['email' => $user->email]);
 
@@ -21,9 +23,11 @@ test('reset password link can be requested', function () {
 });
 
 test('reset password screen can be rendered', function () {
+    $this->withoutVite();
+
     Notification::fake();
 
-    $user = User::factory()->create();
+    $user = Usuario::factory()->create();
 
     $this->post('/forgot-password', ['email' => $user->email]);
 
@@ -39,7 +43,7 @@ test('reset password screen can be rendered', function () {
 test('password can be reset with valid token', function () {
     Notification::fake();
 
-    $user = User::factory()->create();
+    $user = Usuario::factory()->create();
 
     $this->post('/forgot-password', ['email' => $user->email]);
 
