@@ -12,7 +12,7 @@ class UsuarioSeeder extends Seeder
     /**
      * Run the database seeds.
      */
-   
+
 
 public function run()
 {
@@ -23,7 +23,7 @@ public function run()
             'email' => 'admin@gmail.com',
             'password' =>  Hash::make('12345678'),
             'is_admin' => true,
-            
+
         ],
         [
             'id_centro' => '22002491',
