@@ -1,5 +1,5 @@
-# Usar PHP 8.2 con FPM
-FROM php:8.2-fpm
+# Usar PHP 8.4 con FPM
+FROM php:8.4-fpm
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
@@ -28,6 +28,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
 
 # Establecer directorio de trabajo
 WORKDIR /var/www/html
+
+# Evitar el fatal de git "dubious ownership" en el build (Composer inspecciona el repo)
+RUN git config --global --add safe.directory /var/www/html
 
 # Copiar archivos del proyecto
 COPY . .
