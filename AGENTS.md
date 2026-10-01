@@ -8,7 +8,7 @@ Aplicación web para la **gestión del profesorado de FP Virtual en Aragón** (`
 
 ## Stack tecnológico
 
-- **Backend:** Laravel 12 / PHP 8.2 (sesiones en base de datos, colas en `database`).
+- **Backend:** Laravel 12 / PHP 8.4 (sesiones en base de datos, colas en `database`).
 - **Frontend:** Blade + Tailwind CSS 3 + Alpine.js; assets compilados con Vite 6. **No hay Vue** (el README lo menciona pero es incorrecto).
 - **Base de datos:** MariaDB 10.11 (en local se levanta con Docker).
 - **Autenticación:** Laravel Breeze (Blade), basada en sesiones.
@@ -44,7 +44,7 @@ docker compose -f docker-compose.server.yml build
 docker compose -f docker-compose.server.yml up -d   # app en http://IP:8082
 ```
 
-Requisitos en local: PHP 8.2+, Composer, Node 18+, Docker (para la BD). Guía detallada paso a paso en `DESARROLLO.md`.
+Requisitos en local: PHP 8.4+, Composer, Node 18+, Docker (para la BD). Guía detallada paso a paso en `DESARROLLO.md`.
 
 ## Arquitectura
 
@@ -110,11 +110,22 @@ Panel admin (`/admin/*`, prefijo `admin.`, middleware `auth` + `es_admin`):
 
 ## Despliegue y Docker
 
-- `Dockerfile`: imagen PHP 8.2-FPM con Composer y Node 18; compila assets con Vite; arranque vía `start.sh` → `supervisord.conf` (php-fpm). Pensada para producción real.
+- `Dockerfile`: imagen **PHP 8.4-FPM** con Composer y Node 18; compila assets con Vite; arranque vía `start.sh` → `supervisord.conf` (php-fpm). Pensada para producción real. Incluye `git config --global --add safe.directory /var/www/html` antes del `composer install` (evita el fatal de "dubious ownership" en el build).
+- `start.sh`: genera la `APP_KEY` **solo si no existe** (regenerarla en cada arranque invalidaba sesiones y cookies cifradas → bucles de login y errores 419) y **no migra ni siembra por defecto**; solo migra (`--force`, sin `--seed`) si `MIGRATE_ON_BOOT=true`. Las migraciones se lanzan manualmente en cada despliegue.
 - `docker-compose.yml` (desarrollo): solo MariaDB 10.11 con el puerto 3306 expuesto.
 - `docker-compose.server.yml` (servidor de pruebas en LAN): construye la imagen completa pero sobrescribe el comando para servir con `php artisan serve` en el puerto 8082 y migra al arrancar. La BD **no** expone puertos. Para aplicar cambios de código hay que reconstruir la imagen.
 - CI: el workflow `.github/workflows/docker-publish.yml` está desactivado (renombrado a `.desactivado`).
 - Entorno de producción: desplegado vía Docker Compose en `gestionprof.fpvirtualaragon.es`.
+
+### Alineación del esquema `docentes` con producción (2026-10)
+
+- `creado`: existía solo en producción (se añadió a mano); ningún código la usaba → migración que la **elimina** (`2026_10_01_100001`).
+- `email_virtual`: en producción era nullable y había filas NULL; el alta de docente **siempre** genera el email vía `GeneradorEmailVirtualService` → migración que **rellena los NULL con el generador** y después endurece la columna a NOT NULL (`2026_10_01_100002`).
+- Tabla legacy `admins`: huérfana tras el PR #73 y sin referencias en el código → migración que la **elimina** con `dropIfExists('admins')` (`2026_10_01_100003`).
+
+### Nota de despliegue (nginx)
+
+En el `nginx.conf` de cada entorno, el `fastcgi_pass` debe usar el **`container_name` único** del contenedor PHP de ese entorno (p. ej. `pre-gestionprof:9000`), **NUNCA** el alias de servicio `laravel:9000`: al compartir la red `nginx-proxy_frontend` con otros stacks, el DNS de Docker resuelve el alias a varios contenedores en round-robin (provocó que PRE sirviera alternadamente el código de producción).
 
 ## Seguridad
 
@@ -126,6 +137,6 @@ Panel admin (`/admin/*`, prefijo `admin.`, middleware `auth` + `es_admin`):
 ## Documentación de referencia
 
 - `DESARROLLO.md` — guía completa de puesta en marcha (local y servidor LAN), credenciales de prueba, acceso a la BD con DBeaver, solución de problemas frecuentes.
-- `CLAUDE.md` — resumen rápido de comandos y arquitectura (parcialmente desactualizado: la parte del guard `admin` legacy ya no aplica).
+- `CLAUDE.md` — resumen rápido de comandos y arquitectura.
 - `PULL_REQUEST.md` — diagnóstico del PR #73 de unificación de autenticación.
 - `README.md` — descripción general (contiene datos desactualizados: dice Laravel 10/Vue 3; el proyecto es Laravel 12 con Blade).

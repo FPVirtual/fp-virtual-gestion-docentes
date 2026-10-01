@@ -18,7 +18,7 @@ El entorno está configurado siguiendo un enfoque **entorno local nativo + docke
 
 ## Requisitos
 
-- PHP 8.2+ local.
+- PHP 8.4+ local.
 - Composer local.
 - Node.js 18+ y npm locales.
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (o simplemente el motor de Docker) para levantar MySQL.
